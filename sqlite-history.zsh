@@ -5,8 +5,7 @@ typeset -g HISTDB_FILE="${HOME}/.histdb/zsh-history.db"
 typeset -g HISTDB_SESSION=""
 typeset -g HISTDB_MAX_ROWID=""
 typeset -g HISTDB_HOST=""
-
-typeset -gA HISTDB_RESULT
+typeset -g HISTDB_INSTALLED_IN="${(%):-%N}"
 
 sql_escape () {
     sed -e "s/'/''/g" <<< "$@"
@@ -19,13 +18,9 @@ _histdb () {
 
 _histdb_init () {
     if ! [[ -e "${HISTDB_FILE}" ]]; then
-        local DN="$(dirname ${HISTDB_FILE})"
-        if ! [[ -d $DN ]]; then
-            mkdir -p -- $DN
-            pushd $DN
-            git init
-            git config merge.histdb.driver "$HOME/.zsh/histdb-merge %O %A %B"
-            popd
+        local hist_dir="$(dirname ${HISTDB_FILE})"
+        if ! [[ -d "$hist_dir" ]]; then
+            mkdir -p -- "$hist_dir"
         fi
         _histdb <<-EOF
 create table commands (argv text, unique(argv) on conflict ignore);
@@ -120,6 +115,22 @@ $sep$sep') as ${1:-cmd} from history left join commands on history.command_id=co
         column -t -s "$sep"
 }
 
+histdb-commit () {
+    local hist_dir="$(dirname ${HISTDB_FILE})"
+    if [[ -d "$hist_dir" ]]; then
+        pushd "$hist_dir"
+        if [[ $(git rev-parse --is-inside-work-tree) != "true" ]]; then
+            git init
+            git config merge.histdb.driver "$(basename ${HISTDB_INSTALLED_IN})/histdb-merge %O %A %B"
+            echo "$(basename ${HISTDB_FILE}) merge=histdb" >> .gitattributes
+            git add .gitattributes
+            git add "$(basename ${HISTDB_FILE})"
+        fi
+        git commit -am "history" && git pull --no-edit && git push
+        popd
+    fi
+}
+
 histdb () {
     _histdb_init
     local -a opts
@@ -136,7 +147,7 @@ histdb () {
                s+::=sessions \
                -from:- -until:- -limit:-
 
-    usage="usage:$0 [--host] [--in] [--at] [-s n]+* [--from] [--until] [--limit] query
+    usage="usage:$0 terms [--host] [--in] [--at] [-s n]+* [--from] [--until] [--limit]
     --host    print the host column and show all hosts (otherwise current host)
     --host=x  find entries from host x
     --in      find only entries run in the current dir or below

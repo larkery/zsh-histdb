@@ -11,7 +11,72 @@ It improves on the normal history by storing, for each history command:
 
 It is also possible to merge multiple history databases together without conflict, so long as all your machines have different hostnames.
 
-* TODO Installation
-* TODO Querying history
-* TODO Database schema
-* TODO Synchronising history
+* Installation
+
+You will need ~sqlite3~ and the usual coreutils commands installed on your ~PATH~.
+To load and activate history recording you need to source ~sqlite-history.zsh~ from your shell in your zsh startup files.
+
+If you want the history to contain correct timing information, you will also need to source ~history-timer.zsh~ and run
+
+#+BEGIN_SRC zsh
+autoload -Uz add-zsh-hook
+add-zsh-hook preexec _start_timer
+add-zsh-hook precmd  _stop_timer
+#+END_SRC
+
+in your zsh startup files.
+
+* Querying history
+You can query the history with the ~histdb~ command.
+With no arguments it will print one screenful of history on the current host.
+
+With arguments, it will print history lines matching their concatenation.
+
+For wildcards within a history line, you can use the ~%~ character, which is like the shell glob ~*~, so ~histdb this%that~ will match any history line containing ~this~ followed by ~that~ with zero or more characters in-between.
+
+To search on particular hosts, directories, sessions, or time periods, see the help with ~histdb --help~.
+
+You can also run ~histdb-top~ to see your most frequent commands, and ~histdb-top dir~ to show your favourite directory for running commands in, but these commands are really a bit useless.
+** Example:
+
+#+BEGIN_SRC text
+$ histdb strace
+time   ses  dir  cmd
+17/03  438  ~    strace conkeror
+22/03  522  ~    strace apropos cake
+22/03  522  ~    strace -e trace=file s
+22/03  522  ~    strace -e trace=file ls
+22/03  522  ~    strace -e trace=file cat temp/people.vcf
+22/03  522  ~    strace -e trace=file cat temp/gammu.log
+22/03  522  ~    run-help strace
+24/03  547  ~    man strace
+#+END_SRC
+
+These are all the history entries involving ~strace~ in my history.
+If there was more than one screenful, I would need to say ~--limit 1000~ or some other large number.
+The command does not warn you if you haven't seen all the results.
+The ~ses~ column contains a unique session number, so all the ~522~ rows are from the same shell session.
+
+To see all hosts, add ~--host~ /after/ the query terms.
+To see a specific host, add ~--host hostname~.
+To see all of a specific session say e.g. ~-s 522 --limit 10000~.
+* Database schema
+The database lives by default in ~$HOME/.histdb/zsh-history.db~.
+You can look in it easily by running ~_histdb~, as this actually just fires up sqlite with the database.
+
+For inspiration you can also use ~histdb~ with the ~-d~ argument and it will print the SQL it's running.
+* Synchronising history
+You should be able to synchronise the history using ~git~; a 3-way merge driver is supplied in ~histdb-merge~.
+
+The 3-way merge will only work properly if all the computers on which you use the repository have different hostnames.
+
+The ~histdb-commit~ command will initialize git in the histdb directory and configure the merge driver for you first time you run it.
+Subsequent times it will commit all changes, pull all changes, force a merge, and push all changes back again.
+The commit message is useless, so if you find that kind of thing upsetting you will need to fix it.
+
+The reason for using ~histdb-commit~ instead of doing it by hand is that if you are running the git steps in your shell the history database will be changed each command, and so you will never be able to do a pull / merge.
+* Completion
+None, and I've used the names with underscores to mean something else.
+* Pull requests / missing features
+Happy to look at changes.
+I did at one point have a reverse-isearch thing in here for searching the database interactively, but it didn't really make my life any better so I deleted it.
