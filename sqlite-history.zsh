@@ -11,7 +11,7 @@ sql_escape () {
     sed -e "s/'/''/g" <<< "$@"
 }
 
-_histdb () {
+_histdb_query () {
     sqlite3 "${HISTDB_FILE}" "$@"
     [[ "$?" -ne 0 ]] && echo "error in $@"
 }
@@ -22,7 +22,7 @@ _histdb_init () {
         if ! [[ -d "$hist_dir" ]]; then
             mkdir -p -- "$hist_dir"
         fi
-        _histdb <<-EOF
+        _histdb_query <<-EOF
 create table commands (argv text, unique(argv) on conflict ignore);
 create table places   (host text, dir text, unique(host, dir) on conflict ignore);
 create table history  (session int,
@@ -35,7 +35,7 @@ EOF
     fi
     if [[ -z "${HISTDB_SESSION}" ]]; then
         HISTDB_HOST="'$(sql_escape ${HOST})'"
-        HISTDB_SESSION=$(_histdb "select 1+max(session) from history inner join places on places.rowid=history.place_id where places.host = ${HISTDB_HOST}")
+        HISTDB_SESSION=$(_histdb_query "select 1+max(session) from history inner join places on places.rowid=history.place_id where places.host = ${HISTDB_HOST}")
         HISTDB_SESSION="${HISTDB_SESSION:-0}"
         readonly HISTDB_SESSION
     fi
@@ -64,7 +64,7 @@ zshaddhistory () {
     local started=${_STARTED:-${now}}
     _histdb_init
     if [[ "$cmd" != "''" ]]; then
-        _histdb \
+        _histdb_query \
 "insert into commands (argv) values (${cmd});
 insert into places   (host, dir) values (${HISTDB_HOST}, ${pwd});
 insert into history
@@ -107,7 +107,7 @@ histdb-top () {
             table=commands
             ;;;
     esac
-    _histdb -separator "$sep" \
+    _histdb_query -separator "$sep" \
             -header \
             "select count(*) as count, places.host, replace($field, '
 ', '
@@ -115,7 +115,7 @@ $sep$sep') as ${1:-cmd} from history left join commands on history.command_id=co
         column -t -s "$sep"
 }
 
-histdb-commit () {
+histdb-sync () {
     local hist_dir="$(dirname ${HISTDB_FILE})"
     if [[ -d "$hist_dir" ]]; then
         pushd "$hist_dir"
@@ -273,9 +273,6 @@ limit $limit) order by max_start asc"
     if [[ $debug = 1 ]]; then
         echo "$query"
     else
-        _histdb -header -separator $sep "$query" | column -t -s $sep
+        _histdb_query -header -separator $sep "$query" | column -t -s $sep
     fi
 }
-
-# merge encrypted history databases
-

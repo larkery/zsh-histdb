@@ -62,7 +62,7 @@ To see a specific host, add ~--host hostname~.
 To see all of a specific session say e.g. ~-s 522 --limit 10000~.
 * Database schema
 The database lives by default in ~$HOME/.histdb/zsh-history.db~.
-You can look in it easily by running ~_histdb~, as this actually just fires up sqlite with the database.
+You can look in it easily by running ~_histdb_query~, as this actually just fires up sqlite with the database.
 
 For inspiration you can also use ~histdb~ with the ~-d~ argument and it will print the SQL it's running.
 * Synchronising history
@@ -70,11 +70,11 @@ You should be able to synchronise the history using ~git~; a 3-way merge driver 
 
 The 3-way merge will only work properly if all the computers on which you use the repository have different hostnames.
 
-The ~histdb-commit~ command will initialize git in the histdb directory and configure the merge driver for you first time you run it.
+The ~histdb-sync~ function will initialize git in the histdb directory and configure the merge driver for you first time you run it.
 Subsequent times it will commit all changes, pull all changes, force a merge, and push all changes back again.
 The commit message is useless, so if you find that kind of thing upsetting you will need to fix it.
 
-The reason for using ~histdb-commit~ instead of doing it by hand is that if you are running the git steps in your shell the history database will be changed each command, and so you will never be able to do a pull / merge.
+The reason for using ~histdb-function~ instead of doing it by hand is that if you are running the git steps in your shell the history database will be changed each command, and so you will never be able to do a pull / merge.
 * Completion
 None, and I've used the names with underscores to mean something else.
 * Pull requests / missing features
