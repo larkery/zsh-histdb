@@ -74,7 +74,7 @@ The ~histdb-sync~ function will initialize git in the histdb directory and confi
 Subsequent times it will commit all changes, pull all changes, force a merge, and push all changes back again.
 The commit message is useless, so if you find that kind of thing upsetting you will need to fix it.
 
-The reason for using ~histdb-function~ instead of doing it by hand is that if you are running the git steps in your shell the history database will be changed each command, and so you will never be able to do a pull / merge.
+The reason for using ~histdb-sync~ instead of doing it by hand is that if you are running the git steps in your shell the history database will be changed each command, and so you will never be able to do a pull / merge.
 * Completion
 None, and I've used the names with underscores to mean something else.
 * Pull requests / missing features
