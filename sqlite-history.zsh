@@ -206,8 +206,8 @@ histdb () {
     local debug=0
     for opt ($opts); do
         case $opt in
-            --from=*)
-                local from=${opt#--from=}
+            --from*)
+                local from=${opt#--from}
                 case $from in
                     -*)
                         from="datetime('now', '$from')"
@@ -221,8 +221,8 @@ histdb () {
                 esac
                 where="${where} and datetime(start_time, 'unixepoch') >= $from"
             ;;
-            --until=*)
-                local until=${opt#--until=}
+            --until*)
+                local until=${opt#--until}
                 case $until in
                     -*)
                         until="datetime('now', '$until')"
@@ -243,8 +243,8 @@ histdb () {
                 echo "$usage"
                 return 0
                 ;;
-            --limit=*)
-                limit=${opt#--limit=}
+            --limit*)
+                limit=${opt#--limit}
                 ;;
         esac
     done
