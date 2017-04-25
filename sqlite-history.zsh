@@ -149,15 +149,15 @@ histdb () {
 
     usage="usage:$0 terms [--host] [--in] [--at] [-s n]+* [--from] [--until] [--limit]
     --host    print the host column and show all hosts (otherwise current host)
-    --host=x  find entries from host x
+    --host x  find entries from host x
     --in      find only entries run in the current dir or below
-    --in=x    find only entries in directory x or below
+    --in x    find only entries in directory x or below
     --at      like --in, but excluding subdirectories
     -s n      only show session n
     -d        debug output query that will be run
-    --from=x  only show commands after date x (sqlite date parser)
-    --until=x only show commands before date x (sqlite date parser)
-    --limit=n only show n rows. defaults to $LINES or 25"
+    --from x  only show commands after date x (sqlite date parser)
+    --until x only show commands before date x (sqlite date parser)
+    --limit n only show n rows. defaults to $LINES or 25"
 
     local selcols="session as ses, dir"
     local cols="session, replace(places.dir, '$HOME', '~') as dir"
