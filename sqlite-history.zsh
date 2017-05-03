@@ -147,7 +147,7 @@ histdb () {
                s+::=sessions \
                -from:- -until:- -limit:-
 
-    usage="usage:$0 terms [--host] [--in] [--at] [-s n]+* [--from] [--until] [--limit]
+    local usage="usage:$0 terms [--host] [--in] [--at] [-s n]+* [--from] [--until] [--limit]
     --host    print the host column and show all hosts (otherwise current host)
     --host x  find entries from host x
     --in      find only entries run in the current dir or below
@@ -170,6 +170,7 @@ histdb () {
 
     if (( ${#hosts} )); then
         local hostwhere=""
+        local host=""
         for host ($hosts); do
             host="${${host#--host}#=}"
             hostwhere="${hostwhere}${host:+${hostwhere:+ or }places.host='$(sql_escape ${host})'}"
@@ -183,6 +184,7 @@ histdb () {
 
     if (( ${#indirs} + ${#atdirs} )); then
         local dirwhere=""
+        local dir=""
         for dir ($indirs); do
             dir="${${${dir#--in}#=}:-$PWD}"
             dirwhere="${dirwhere}${dirwhere:+ or }places.dir like '$(sql_escape $dir)%'"
@@ -196,6 +198,7 @@ histdb () {
 
     if (( ${#sessions} )); then
         local sin=""
+        local ses=""
         for ses ($sessions); do
             ses="${${${ses#-s}#=}:-${HISTDB_SESSION}}"
             sin="${sin}${sin:+, }$ses"
@@ -204,6 +207,7 @@ histdb () {
     fi
 
     local debug=0
+    local opt=""
     for opt ($opts); do
         case $opt in
             --from*)
@@ -249,7 +253,7 @@ histdb () {
         esac
     done
 
-    sep=$'\x1f'
+    local sep=$'\x1f'
     cols="${cols}, replace(commands.argv, '
 ', '
 $sep$sep$sep') as argv, max(start_time) as max_start"
@@ -260,7 +264,7 @@ $sep$sep$sep') as argv, max(start_time) as max_start"
 
     selcols="${timecol}, ${selcols}, argv as cmd"
 
-    query="select ${selcols} from (select ${cols}
+    local query="select ${selcols} from (select ${cols}
 from
   history
   left join commands on history.command_id = commands.rowid
