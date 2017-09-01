@@ -140,12 +140,13 @@ histdb () {
                -in+::=indirs \
                -at+::=atdirs \
                -forget \
+               -sep:- \
                -exact \
                d h -help \
                s+::=sessions \
                -from:- -until:- -limit:-
 
-    local usage="usage:$0 terms [--host] [--in] [--at] [-s n]+* [--from] [--until] [--limit] [--delete]
+    local usage="usage:$0 terms [--host] [--in] [--at] [-s n]+* [--from] [--until] [--limit] [--forget] [--sep x]
     --host    print the host column and show all hosts (otherwise current host)
     --host x  find entries from host x
     --in      find only entries run in the current dir or below
@@ -155,6 +156,7 @@ histdb () {
     -d        debug output query that will be run
     --forget  forget everything which matches in the history
     --exact   don't match substrings
+    --sep x   print with separator x, and don't tabulate
     --from x  only show commands after date x (sqlite date parser)
     --until x only show commands before date x (sqlite date parser)
     --limit n only show n rows. defaults to $LINES or 25"
@@ -204,10 +206,14 @@ histdb () {
         where="${where}${sin:+ and session in ($sin)}"
     fi
 
+    local sep=$'\x1f'
     local debug=0
     local opt=""
     for opt ($opts); do
         case $opt in
+            --sep*)
+                sep=${opt#--sep}
+                ;;
             --from*)
                 local from=${opt#--from}
                 case $from in
@@ -269,7 +275,6 @@ histdb () {
         limit="10000000"
     fi
 
-    local sep=$'\x1f'
     cols="${cols}, replace(commands.argv, '
 ', '
 $sep$sep$sep') as argv, max(start_time) as max_start"
@@ -304,7 +309,11 @@ order by max_start desc) order by max_start asc"
         echo "$query"
     else
         local count=$(_histdb_query "$count_query")
-        _histdb_query -header -separator $sep "$query" | iconv -f utf-8 -t utf-8 -c | column -t -s $sep
+        if [[ $sep == $'\x1f' ]]; then
+            _histdb_query -header -separator $sep "$query" | iconv -f utf-8 -t utf-8 -c | column -t -s $sep
+        else
+            _histdb_query -header -separator $sep "$query"
+        fi
         [[ $limit -lt $count ]] && echo "(showing $limit of $count results)"
     fi
 
