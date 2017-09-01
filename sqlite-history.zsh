@@ -139,11 +139,13 @@ histdb () {
                -host+::=hosts \
                -in+::=indirs \
                -at+::=atdirs \
+               -forget \
+               -exact \
                d h -help \
                s+::=sessions \
                -from:- -until:- -limit:-
 
-    local usage="usage:$0 terms [--host] [--in] [--at] [-s n]+* [--from] [--until] [--limit]
+    local usage="usage:$0 terms [--host] [--in] [--at] [-s n]+* [--from] [--until] [--limit] [--delete]
     --host    print the host column and show all hosts (otherwise current host)
     --host x  find entries from host x
     --in      find only entries run in the current dir or below
@@ -151,6 +153,8 @@ histdb () {
     --at      like --in, but excluding subdirectories
     -s n      only show session n
     -d        debug output query that will be run
+    --forget  forget everything which matches in the history
+    --exact   don't match substrings
     --from x  only show commands after date x (sqlite date parser)
     --until x only show commands before date x (sqlite date parser)
     --limit n only show n rows. defaults to $LINES or 25"
@@ -159,10 +163,8 @@ histdb () {
     local cols="session, replace(places.dir, '$HOME', '~') as dir"
     local where="not (commands.argv like 'histdb%')"
     local limit="${$((LINES - 4)):-25}"
-
-    if [[ -n "$*" ]]; then
-        where="${where} and commands.argv like '%$(sql_escape $@)%'"
-    fi
+    local forget="0"
+    local exact=0
 
     if (( ${#hosts} )); then
         local hostwhere=""
@@ -243,11 +245,29 @@ histdb () {
                 echo "$usage"
                 return 0
                 ;;
+            --forget)
+                forget=1
+                ;;
+            --exact)
+                exact=1
+                ;;
             --limit*)
                 limit=${opt#--limit}
                 ;;
         esac
     done
+
+    if [[ -n "$*" ]]; then
+        if [[ $exact -eq 0 ]]; then
+            where="${where} and commands.argv like '%$(sql_escape $@)%'"
+        else
+            where="${where} and commands.argv like '$(sql_escape $@)'"
+        fi
+    fi
+
+    if [[ $forget -gt 0 ]]; then
+        limit="10000000"
+    fi
 
     local sep=$'\x1f'
     cols="${cols}, replace(commands.argv, '
@@ -286,5 +306,19 @@ order by max_start desc) order by max_start asc"
         local count=$(_histdb_query "$count_query")
         _histdb_query -header -separator $sep "$query" | iconv -f utf-8 -t utf-8 -c | column -t -s $sep
         [[ $limit -lt $count ]] && echo "(showing $limit of $count results)"
+    fi
+
+    if [[ $forget -gt 0 ]]; then
+        read -q "REPLY?Forget all these results? [y/n] "
+        if [[ $REPLY =~ "[yY]" ]]; then
+            _histdb_query "delete from history where
+history.rowid in (
+select history.rowid from
+history
+  left join commands on history.command_id = commands.rowid
+  left join places on history.place_id = places.rowid
+where ${where})"
+            _histdb_query "delete from commands where commands.rowid not in (select distinct history.command_id from history)"
+        fi
     fi
 }
