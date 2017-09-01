@@ -54,10 +54,6 @@ zshaddhistory () {
         fi
     done
 
-    if [[ $PWD = "$HOME/.history" ]]; then
-        return 0
-    fi
-
     local cmd="'$(sql_escape $cmd)'"
     local pwd="'$(sql_escape ${PWD})'"
     local now="${_FINISHED:-$(date +%s)}"
@@ -277,6 +273,6 @@ limit $limit) order by max_start asc"
     if [[ $debug = 1 ]]; then
         echo "$query"
     else
-        _histdb_query -header -separator $sep "$query" | column -t -s $sep
+        _histdb_query -header -separator $sep "$query" | iconv -f utf-8 -t utf-8 -c | column -t -s $sep
     fi
 }
