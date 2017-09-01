@@ -72,7 +72,7 @@ If you use [[https://github.com/zsh-users/zsh-autosuggestions][zsh-autosuggestio
   where places.dir LIKE '$(sql_escape $PWD)%'
   and commands.argv LIKE '$(sql_escape $1)%'
   group by commands.argv order by count(*) desc limit 1"
-      _histdb_query "$query"
+      suggestion=$(_histdb_query "$query")
   }
 
   ZSH_AUTOSUGGEST_STRATEGY=histdb_top_here
