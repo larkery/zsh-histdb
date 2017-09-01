@@ -26,6 +26,10 @@ add-zsh-hook precmd  _stop_timer
 
 in your zsh startup files.
 
+** Importing your old history
+
+https://github.com/drewis/go-histdbimport is a useful tool for doing this!
+
 * Querying history
 You can query the history with the ~histdb~ command.
 With no arguments it will print one screenful of history on the current host.
