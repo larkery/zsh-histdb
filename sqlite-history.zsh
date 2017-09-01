@@ -158,7 +158,7 @@ histdb () {
     local selcols="session as ses, dir"
     local cols="session, replace(places.dir, '$HOME', '~') as dir"
     local where="not (commands.argv like 'histdb%')"
-    local limit="${LINES:-25}"
+    local limit="${$((LINES - 4)):-25}"
 
     if [[ -n "$*" ]]; then
         where="${where} and commands.argv like '%$(sql_escape $@)%'"
@@ -270,9 +270,21 @@ group by history.command_id, history.place_id
 order by max_start desc
 limit $limit) order by max_start asc"
 
+    ## min max date?
+    local count_query="select count(*) from (select ${cols}
+from
+  history
+  left join commands on history.command_id = commands.rowid
+  left join places on history.place_id = places.rowid
+where ${where}
+group by history.command_id, history.place_id
+order by max_start desc) order by max_start asc"
+
     if [[ $debug = 1 ]]; then
         echo "$query"
     else
+        local count=$(_histdb_query "$count_query")
         _histdb_query -header -separator $sep "$query" | iconv -f utf-8 -t utf-8 -c | column -t -s $sep
+        [[ $limit -lt $count ]] && echo "(showing $limit of $count results)"
     fi
 }
