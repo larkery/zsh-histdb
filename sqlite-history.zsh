@@ -328,7 +328,7 @@ order by max_start desc) order by max_start asc"
         else
             _histdb_query -header -separator $sep "$query" | buffer
         fi
-        [[ -n $limit -a $limit -lt $count ]] && echo "(showing $limit of $count results)"
+        [[ -n $limit ]] && [[ $limit -lt $count ]] && echo "(showing $limit of $count results)"
     fi
 
     if [[ $forget -gt 0 ]]; then
