@@ -164,7 +164,12 @@ histdb () {
     local selcols="session as ses, dir"
     local cols="session, replace(places.dir, '$HOME', '~') as dir"
     local where="not (commands.argv like 'histdb%')"
-    local limit="${$((LINES - 4)):-25}"
+    if [[ -p /dev/stdout ]]; then
+        local limit=""
+    else
+        local limit="${$((LINES - 4)):-25}"
+    fi
+
     local forget="0"
     local exact=0
 
@@ -272,7 +277,7 @@ histdb () {
     fi
 
     if [[ $forget -gt 0 ]]; then
-        limit="10000000"
+        limit=""
     fi
 
     cols="${cols}, replace(commands.argv, '
@@ -293,7 +298,7 @@ from
 where ${where}
 group by history.command_id, history.place_id
 order by max_start desc
-limit $limit) order by max_start asc"
+${limit:+limit $limit}) order by max_start asc"
 
     ## min max date?
     local count_query="select count(*) from (select ${cols}
@@ -309,12 +314,21 @@ order by max_start desc) order by max_start asc"
         echo "$query"
     else
         local count=$(_histdb_query "$count_query")
-        if [[ $sep == $'\x1f' ]]; then
-            _histdb_query -header -separator $sep "$query" | iconv -f utf-8 -t utf-8 -c | column -t -s $sep
+        if [[ -p /dev/stdout ]]; then
+            buffer() {
+                perl -e 'local $/; my $stdin = <STDIN>; print $stdin;'
+            }
         else
-            _histdb_query -header -separator $sep "$query"
+            buffer() {
+                cat
+            }
         fi
-        [[ $limit -lt $count ]] && echo "(showing $limit of $count results)"
+        if [[ $sep == $'\x1f' ]]; then
+            _histdb_query -header -separator $sep "$query" | iconv -f utf-8 -t utf-8 -c | column -t -s $sep | buffer
+        else
+            _histdb_query -header -separator $sep "$query" | buffer
+        fi
+        [[ -n $limit -a $limit -lt $count ]] && echo "(showing $limit of $count results)"
     fi
 
     if [[ $forget -gt 0 ]]; then
