@@ -3,11 +3,11 @@
 This is a small bit of zsh code that stores your history into a sqlite3 database.
 It improves on the normal history by storing, for each history command:
 
-- The start and stop times of the command
+- The start and stop times of the command (currently broken, because I didn't read the manual)
 - The working directory where the command was run
 - The hostname of the machine
 - A unique per-host session ID, so history from several sessions is not confused
-- The exit status of the command
+- The exit status of the command (also broken)
 
 It is also possible to merge multiple history databases together without conflict, so long as all your machines have different hostnames.
 
