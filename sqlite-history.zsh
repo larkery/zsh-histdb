@@ -331,7 +331,11 @@ order by max_start desc) order by max_start asc"
         local count=$(_histdb_query "$count_query")
         if [[ -p /dev/stdout ]]; then
             buffer() {
-                perl -e 'local $/; my $stdin = <STDIN>; print $stdin;'
+                ## this runs out of memory for big files I think perl -e 'local $/; my $stdin = <STDIN>; print $stdin;'
+                temp=$(mktemp)
+                cat > "$temp"
+                cat -- "$temp"
+                rm -f -- "$temp"
             }
         else
             buffer() {
