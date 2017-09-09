@@ -120,6 +120,7 @@ $sep$sep') as ${1:-cmd} from history left join commands on history.command_id=co
 }
 
 histdb-sync () {
+    _histdb_init
     local hist_dir="$(dirname ${HISTDB_FILE})"
     if [[ -d "$hist_dir" ]]; then
         pushd "$hist_dir"
