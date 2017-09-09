@@ -1,13 +1,19 @@
 #+TITLE:ZSH History Database
 
+* News
+
+- 09/09/17 :: If you have already installed and you want to get the right timings in the database, see the installation section again. Fix to issue #18.
+
+* What is this
+
 This is a small bit of zsh code that stores your history into a sqlite3 database.
 It improves on the normal history by storing, for each history command:
 
-- The start and stop times of the command (currently broken, because I didn't read the manual)
+- The start and stop times of the command
 - The working directory where the command was run
 - The hostname of the machine
 - A unique per-host session ID, so history from several sessions is not confused
-- The exit status of the command (also broken)
+- The exit status of the command
 
 It is also possible to merge multiple history databases together without conflict, so long as all your machines have different hostnames.
 
@@ -16,12 +22,11 @@ It is also possible to merge multiple history databases together without conflic
 You will need ~sqlite3~ and the usual coreutils commands installed on your ~PATH~.
 To load and activate history recording you need to source ~sqlite-history.zsh~ from your shell in your zsh startup files.
 
-If you want the history to contain correct timing information, you will also need to source ~history-timer.zsh~ and run
+If you want the history to contain correct timing information, you will also need to run `histdb-update-outcome` in your precmd hook
 
 #+BEGIN_SRC zsh
 autoload -Uz add-zsh-hook
-add-zsh-hook preexec _start_timer
-add-zsh-hook precmd  _stop_timer
+add-zsh-hook precmd  histdb-update-outcome
 #+END_SRC
 
 in your zsh startup files.

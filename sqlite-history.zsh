@@ -3,9 +3,9 @@ which sqlite3 >/dev/null 2>&1 || return;
 typeset -g HISTDB_QUERY=""
 typeset -g HISTDB_FILE="${HOME}/.histdb/zsh-history.db"
 typeset -g HISTDB_SESSION=""
-typeset -g HISTDB_MAX_ROWID=""
 typeset -g HISTDB_HOST=""
 typeset -g HISTDB_INSTALLED_IN="${(%):-%N}"
+typeset -g HISTDB_AWAITING_EXIT=0
 
 sql_escape () {
     sed -e "s/'/''/g" <<< "$@"
@@ -44,8 +44,18 @@ EOF
 declare -a _BORING_COMMANDS
 _BORING_COMMANDS=("^ls$" "^cd$" "^ " "^histdb" "^top$" "^htop$")
 
-zshaddhistory () {
+histdb-update-outcome () {
     local retval=$?
+    local finished=$(date +%s)
+    if [[ $HISTDB_AWAITING_EXIT == 1 ]]; then
+        _histdb_init
+        _histdb_query "update history set exit_status = ${retval}, duration = ${finished} - start_time
+where rowid = (select max(rowid) from history) and session = ${HISTDB_SESSION}"
+        HISTDB_AWAITING_EXIT=0
+    fi
+}
+
+zshaddhistory () {
     local cmd="${1[0, -2]}"
 
     for boring ($_BORING_COMMANDS); do
@@ -56,22 +66,20 @@ zshaddhistory () {
 
     local cmd="'$(sql_escape $cmd)'"
     local pwd="'$(sql_escape ${PWD})'"
-    local now="${_FINISHED:-$(date +%s)}"
-    local started=${_STARTED:-${now}}
+    local started=$(date +%s)
     _histdb_init
+
     if [[ "$cmd" != "''" ]]; then
         _histdb_query \
 "insert into commands (argv) values (${cmd});
 insert into places   (host, dir) values (${HISTDB_HOST}, ${pwd});
 insert into history
-  (session, command_id, place_id, exit_status, start_time, duration)
+  (session, command_id, place_id, start_time)
 select
   ${HISTDB_SESSION},
   commands.rowid,
   places.rowid,
-  ${retval},
-  ${started},
-  ${now} - ${started}
+  ${started}
 from
   commands, places
 where
@@ -79,7 +87,7 @@ where
   places.host = ${HISTDB_HOST} and
   places.dir = ${pwd}
 ;"
-
+        HISTDB_AWAITING_EXIT=1
     fi
     return 0
 }
@@ -140,13 +148,14 @@ histdb () {
                -in+::=indirs \
                -at+::=atdirs \
                -forget \
+               -detail \
                -sep:- \
                -exact \
                d h -help \
                s+::=sessions \
                -from:- -until:- -limit:-
 
-    local usage="usage:$0 terms [--host] [--in] [--at] [-s n]+* [--from] [--until] [--limit] [--forget] [--sep x]
+    local usage="usage:$0 terms [--host] [--in] [--at] [-s n]+* [--from] [--until] [--limit] [--forget] [--sep x] [--detail]
     --host    print the host column and show all hosts (otherwise current host)
     --host x  find entries from host x
     --in      find only entries run in the current dir or below
@@ -154,6 +163,7 @@ histdb () {
     --at      like --in, but excluding subdirectories
     -s n      only show session n
     -d        debug output query that will be run
+    --detail  show details
     --forget  forget everything which matches in the history
     --exact   don't match substrings
     --sep x   print with separator x, and don't tabulate
@@ -252,6 +262,10 @@ histdb () {
             -d)
                 debug=1
                 ;;
+            --detail)
+                cols="${cols}, exit_status, duration "
+                selcols="${selcols}, exit_status as [?],duration as secs "
+                ;;
             -h|--help)
                 echo "$usage"
                 return 0
@@ -279,7 +293,7 @@ histdb () {
     if [[ $forget -gt 0 ]]; then
         limit=""
     fi
-
+    ## TODO produce the right number of $sep here
     cols="${cols}, replace(commands.argv, '
 ', '
 $sep$sep$sep') as argv, max(start_time) as max_start"
