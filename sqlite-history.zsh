@@ -293,10 +293,10 @@ histdb () {
     if [[ $forget -gt 0 ]]; then
         limit=""
     fi
-    ## TODO produce the right number of $sep here
+    local seps=$(echo "$cols" | tr -c -d ',' | tr ',' $sep)
     cols="${cols}, replace(commands.argv, '
 ', '
-$sep$sep$sep') as argv, max(start_time) as max_start"
+$seps') as argv, max(start_time) as max_start"
 
     local mst="datetime(max_start, 'unixepoch')"
     local dst="datetime('now', 'start of day')"
