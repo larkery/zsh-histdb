@@ -97,7 +97,11 @@ This query will find the most frequently issued command that is issued in the cu
   where commands.argv LIKE '$(sql_escape $1)%'
   group by commands.argv
   order by places.dir != '$(sql_escape $PWD)', count(*) desc limit 1"
-      _histdb_query "$query"
+      suggestion=$(_histdb_query "$query")
+}
+
+   ZSH_AUTOSUGGEST_STRATEGY=histdb_top
+
   }
 #+END_SRC
 
