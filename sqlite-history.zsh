@@ -333,7 +333,7 @@ order by max_start desc) order by max_start asc"
             buffer() {
                 ## this runs out of memory for big files I think perl -e 'local $/; my $stdin = <STDIN>; print $stdin;'
                 temp=$(mktemp)
-                cat > "$temp"
+                cat >! "$temp"
                 cat -- "$temp"
                 rm -f -- "$temp"
             }
