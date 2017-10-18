@@ -58,7 +58,7 @@ where rowid = (select max(rowid) from history) and session = ${HISTDB_SESSION}"
 zshaddhistory () {
     local cmd="${1[0, -2]}"
 
-    for boring ($_BORING_COMMANDS); do
+    for boring in "${_BORING_COMMANDS[@]}"; do
         if [[ "$cmd" =~ $boring ]]; then
             return 0
         fi
