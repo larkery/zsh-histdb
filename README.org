@@ -24,14 +24,14 @@ To load and activate history recording you need to source ~sqlite-history.zsh~ f
 
 If you want the history to contain correct timing information, you will also need to run ~histdb-update-outcome~ in your ~precmd~ hook
 
-Example for installing in ~$HOME/.oh-my-zsh/custom/plugins/zsh-histdb~ (note that ~`oh-my-zsh~ is not required):
+Example for installing in ~$HOME/.oh-my-zsh/custom/plugins/zsh-histdb~ (note that ~oh-my-zsh~ is not required):
 
 #+BEGIN_SRC zsh
 mkdir -p $HOME/.oh-my-zsh/custom/plugins/
 git clone https://github.com/larkery/zsh-histdb $HOME/.oh-my-zsh/custom/plugins/zsh-histdb
 #+END_SRC
 
-Add this to your ~~/.zshrc~:
+Add this to your ~$HOME/.zshrc~:
 
 #+BEGIN_SRC zsh
 source $HOME/.oh-my-zsh/custom/plugins/zsh-histdb/sqlite-history.zsh
