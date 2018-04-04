@@ -1,5 +1,7 @@
 typeset -g HISTDB_ISEARCH_N
 typeset -g HISTDB_ISEARCH_MATCH
+typeset -g HISTDB_ISEARCH_DIR
+typeset -g HISTDB_ISEARCH_DATE
 
 # TODO Show more info about match (n, date, pwd, host)
 # TODO Keys to limit match?
@@ -12,24 +14,54 @@ _histdb_isearch_query () {
        HISTDB_ISEARCH_MATCH=""
        return
     fi
-    local query="select commands.argv from history left join commands
+
+    if (( $HISTDB_ISEARCH_N < 0 )); then
+        local maxmin="min"
+        local ascdesc="asc"
+        local offset=$(( - $HISTDB_ISEARCH_N ))
+    else
+        local maxmin="max"
+        local ascdesc="desc"
+        local offset=$(( $HISTDB_ISEARCH_N ))
+    fi
+
+    local query="select
+commands.argv,
+places.dir,
+datetime(max(history.start_time), 'unixepoch')
+from history left join commands
 on history.command_id = commands.rowid
+left join places
+on history.place_id = places.rowid
 where commands.argv like '%$(sql_escape ${BUFFER})%'
-group by commands.argv
-order by max(history.start_time) desc
+group by commands.argv, places.dir
+order by $maxmin(history.start_time) $ascdesc
 limit 1
-offset ${HISTDB_ISEARCH_N}"
-    HISTDB_ISEARCH_MATCH=$(_histdb_query "$query")
+offset ${offset}"
+    local result=$(_histdb_query -separator $'\n' "$query")
+    local lines=("${(f)result}")
+    HISTDB_ISEARCH_DATE=${lines[-1]}
+    HISTDB_ISEARCH_DIR=${lines[-2]}
+    lines[-1]=()
+    lines[-1]=()
+    HISTDB_ISEARCH_MATCH=${(F)lines}
 }
 
 _histdb_isearch_display () {
-    local prefix="${HISTDB_ISEARCH_MATCH%%${BUFFER}*}"
-    local prefix_len="${#prefix}"
-    local match_len="${#BUFFER}"
-    local match_end=$(( $match_len + $prefix_len ))
-    region_highlight=("P${prefix_len} ${match_end} underline")
-    PREDISPLAY="${HISTDB_ISEARCH_MATCH}
+    if [[ -z ${HISTDB_ISEARCH_MATCH} ]]; then
+        PREDISPLAY="(no match)
 histdb($HISTDB_ISEARCH_N): "
+    else
+        local prefix="${HISTDB_ISEARCH_MATCH%%${BUFFER}*}"
+        local prefix_len="${#prefix}"
+        local match_len="${#BUFFER}"
+        local match_end=$(( $match_len + $prefix_len ))
+        region_highlight=("P${prefix_len} ${match_end} underline")
+        PREDISPLAY="${HISTDB_ISEARCH_MATCH}
+→ in ${HISTDB_ISEARCH_DIR}
+→ on ${HISTDB_ISEARCH_DATE}
+histdb($HISTDB_ISEARCH_N): "
+    fi
 }
 
 _histdb-isearch-up () {
@@ -80,7 +112,7 @@ _histdb-isearch () {
 }
 
 zle -N _histdb-isearch-up
-zle -N _histdb-isearch-up
+zle -N _histdb-isearch-down
 zle -N _histdb-isearch
 
 bindkey -M histdb-isearch '' _histdb-isearch-up
