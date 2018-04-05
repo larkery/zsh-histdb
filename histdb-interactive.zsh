@@ -99,10 +99,12 @@ _histdb_isearch_display () {
         PREDISPLAY="(no match)
 $top_bit"
     else
+        local qbuffer="${(b)BUFFER}"
+        qbuffer="${${qbuffer//\\\*/*}//\\\?/?}"
         local match_len="${#HISTDB_ISEARCH_MATCH}"
-        local prefix="${HISTDB_ISEARCH_MATCH%%${~BUFFER}*}"
+        local prefix="${HISTDB_ISEARCH_MATCH%%${~qbuffer}*}"
         local prefix_len="${#prefix}"
-        local suffix_len="${#${HISTDB_ISEARCH_MATCH:${prefix_len}}##${~BUFFER}}"
+        local suffix_len="${#${HISTDB_ISEARCH_MATCH:${prefix_len}}##${~qbuffer}}"
 
         local match_end=$(( $match_len - $suffix_len ))
         if [[ $HISTDB_ISEARCH_HOST == $HOST ]]; then
