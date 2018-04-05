@@ -53,7 +53,9 @@ _histdb_isearch_query () {
     else
         local where_host=""
     fi
-    
+
+    local qpat=${${BUFFER//\*/%}//\?/_}
+
     local query="select
 commands.argv,
 places.dir,
@@ -63,7 +65,7 @@ from history left join commands
 on history.command_id = commands.rowid
 left join places
 on history.place_id = places.rowid
-where commands.argv like '%$(sql_escape ${BUFFER})%'
+where commands.argv like '%$(sql_escape ${qpat})%'
 ${where_host}
 ${where_dir}
 group by commands.argv, places.dir, places.host
@@ -97,10 +99,12 @@ _histdb_isearch_display () {
         PREDISPLAY="(no match)
 $top_bit"
     else
-        local prefix="${HISTDB_ISEARCH_MATCH%%${BUFFER}*}"
+        local match_len="${#HISTDB_ISEARCH_MATCH}"
+        local prefix="${HISTDB_ISEARCH_MATCH%%${~BUFFER}*}"
         local prefix_len="${#prefix}"
-        local match_len="${#BUFFER}"
-        local match_end=$(( $match_len + $prefix_len ))
+        local suffix_len="${#${HISTDB_ISEARCH_MATCH:${prefix_len}}##${~BUFFER}}"
+
+        local match_end=$(( $match_len - $suffix_len ))
         if [[ $HISTDB_ISEARCH_HOST == $HOST ]]; then
             local host=""
         else
