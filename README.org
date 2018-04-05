@@ -23,8 +23,27 @@ It is also possible to merge multiple history databases together without conflic
 
 * Installation
 
+** Manual
 You will need ~sqlite3~ and the usual coreutils commands installed on your ~PATH~.
 To load and activate history recording you need to source ~sqlite-history.zsh~ from your shell in your zsh startup files.
+
+** Oh My Zsh
+Clone this repository into ~${ZSH_CUSTOM}/plugins~ (by default
+   ~${HOME}/.oh-my-zsh/custom/plugins~)
+#+BEGIN_SRC text
+git clone git://github.com/larkery/zsh-histdb "${ZSH_CUSTOM}/plugins/zsh-histdb"
+#+END_SRC
+
+Add the plugin to the list of plugins for ~${HOME}/.zshrc~ to load:
+#+BEGIN_SRC text
+plugins=([...] zsh-histdb)
+#+END_SRC
+
+You can disable the default history by:
+~unset HISTFILE~
+
+
+** Further config
 
 If you want the history to contain correct timing information, you will also need to run `histdb-update-outcome` in your precmd hook
 
