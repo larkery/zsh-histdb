@@ -95,7 +95,6 @@ where
 histdb-frecent-dirs () {
     _histdb_init
     local now="$(date +%s)"
-    echo ${PREFIX:-${PWD}}
     _histdb_query -separator "\n" \
                   "
 select
@@ -103,10 +102,12 @@ select
 from history left join places on history.place_id = places.rowid
 where places.host = ${HISTDB_HOST}
 and places.dir != '$(sql_escape $PWD)'
-and places.dir like '%$(sql_escape ${PREFIX:-${PWD}})%'
+and places.dir like '%$(sql_escape ${1:-${PWD}})%'
 group by places.dir
 order by sum(1000.0/($now - history.start_time)) desc
-"
+" | while read d; do
+        ( [[ $d = "/net/*" ]] || [[ -d $d ]] ) && echo "$d"
+    done
 }
 
 histdb-top () {
