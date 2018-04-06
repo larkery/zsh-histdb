@@ -54,8 +54,6 @@ _histdb_isearch_query () {
         local where_host=""
     fi
 
-    local qpat=${${BUFFER//\*/%}//\?/_}
-
     local query="select
 commands.argv,
 places.dir,
@@ -65,7 +63,7 @@ from history left join commands
 on history.command_id = commands.rowid
 left join places
 on history.place_id = places.rowid
-where commands.argv like '%$(sql_escape ${qpat})%'
+where commands.argv glob '*$(sql_escape ${BUFFER})*'
 ${where_host}
 ${where_dir}
 group by commands.argv, places.dir, places.host
