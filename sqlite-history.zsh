@@ -285,9 +285,9 @@ histdb () {
 
     if [[ -n "$*" ]]; then
         if [[ $exact -eq 0 ]]; then
-            where="${where} and commands.argv like '%$(sql_escape $@)%'"
+            where="${where} and commands.argv glob '*$(sql_escape $@)*'"
         else
-            where="${where} and commands.argv like '$(sql_escape $@)'"
+            where="${where} and commands.argv = '$(sql_escape $@)'"
         fi
     fi
 
