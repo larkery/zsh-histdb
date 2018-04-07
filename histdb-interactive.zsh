@@ -3,6 +3,7 @@ typeset -g HISTDB_ISEARCH_MATCH
 typeset -g HISTDB_ISEARCH_DIR
 typeset -g HISTDB_ISEARCH_HOST
 typeset -g HISTDB_ISEARCH_DATE
+typeset -g HISTDB_ISEARCH_MATCH_END
 
 typeset -g HISTDB_ISEARCH_THIS_HOST=1
 typeset -g HISTDB_ISEARCH_THIS_DIR=0
@@ -101,6 +102,7 @@ $top_bit"
         local prefix_len="${#prefix}"
         local match_len="${#BUFFER}"
         local match_end=$(( $match_len + $prefix_len ))
+        HISTDB_ISEARCH_MATCH_END=${match_end}
         if [[ $HISTDB_ISEARCH_HOST == $HOST ]]; then
             local host=""
         else
@@ -140,12 +142,12 @@ _histdb-isearch () {
     zle -N zle-line-pre-redraw _histdb_line_redraw
     _histdb_isearch_query
     _histdb_isearch_display
-    zle recursive-edit
+    zle recursive-edit; local stat=$?
  #   zle -A .self-insert self-insert
     zle -D zle-line-pre-redraw # TODO push/pop zle-line-pre-redraw and
                                # self-insert, rather than nuking
 
-    local stat=$?
+
 
     zle -K main
     PREDISPLAY=""
@@ -155,6 +157,7 @@ _histdb-isearch () {
 
     if ! (( stat )); then
         BUFFER="${HISTDB_ISEARCH_MATCH}"
+        CURSOR="${HISTDB_ISEARCH_MATCH_END}"
     fi
 
     return 0
