@@ -2,6 +2,10 @@
 
 * News
 
+- 05/04/18 :: I've done a bit of work to make a replacement reverse-isearch function, which is in a usable state now.
+
+              If you want to use it, see the [[Reverse isearch]] section below which now covers it.
+
 - 09/09/17 :: If you have already installed and you want to get the right timings in the database, see the installation section again. Fix to issue #18.
 
 * What is this
@@ -102,6 +106,27 @@ This query will find the most frequently issued command that is issued in the cu
 #+END_SRC
 
 This will find the most frequently issued command issued exactly in this directory, or if there are no matches it will find the most frequently issued command in any directory. You could use other fields like the hostname to restrict to suggestions on this host, etc.
+** Reverse isearch
+If you want a history-reverse-isearch type feature there is one defined in ~histdb-interactive.zsh~. If you source that file you will get a new widget called _histdb-isearch which you can bind to a key, e.g.
+
+#+BEGIN_SRC sh
+source histdb-interactive.zsh
+bindkey '^r' _histdb-isearch
+#+END_SRC
+
+This is like normal ~history-reverse-isearch~ except:
+- The search will start with the buffer contents automatically
+- The editing keys are all standard (because it does not really use the minibuffer).
+
+  This means pressing ~C-a~ or ~C-e~ or similar will not exit the search like normal ~history-reverse-isearch~
+- The accept key (~RET~) does not cause the command to run immediately but instead lets you edit it
+
+There are also a few extra keybindings:
+
+- ~M-j~ will ~cd~ to the directory for the history entry you're looking at.
+  This means you can search for ./run-this-command and then ~M-j~ to go to the right directory before running.
+- ~M-h~ will toggle limiting the search to the current host's history.
+- ~M-d~ will toggle limiting the search to the current directory and subdirectories' histories
 * Database schema
 The database lives by default in ~$HOME/.histdb/zsh-history.db~.
 You can look in it easily by running ~_histdb_query~, as this actually just fires up sqlite with the database.
