@@ -137,21 +137,18 @@ _histdb_line_redraw () {
 }
 
 _histdb-isearch () {
+    local old_buffer=${BUFFER}
+    local old_cursor=${CURSOR}
     HISTDB_ISEARCH_N=0
     echo -ne "\e[4 q" # switch to underline cursor
 
-#    zle -N self-insert self-insert-histdb-isearch
     zle -K histdb-isearch
-
     zle -N zle-line-pre-redraw _histdb_line_redraw
     _histdb_isearch_query
     _histdb_isearch_display
     zle recursive-edit; local stat=$?
- #   zle -A .self-insert self-insert
     zle -D zle-line-pre-redraw # TODO push/pop zle-line-pre-redraw and
                                # self-insert, rather than nuking
-
-
 
     zle -K main
     PREDISPLAY=""
@@ -162,6 +159,9 @@ _histdb-isearch () {
     if ! (( stat )); then
         BUFFER="${HISTDB_ISEARCH_MATCH}"
         CURSOR="${HISTDB_ISEARCH_MATCH_END}"
+    else
+        BUFFER=${old_buffer}
+        CURSOR=${old_cursor}
     fi
 
     return 0
