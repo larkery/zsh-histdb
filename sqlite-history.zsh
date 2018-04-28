@@ -44,6 +44,11 @@ EOF
 declare -a _BORING_COMMANDS
 _BORING_COMMANDS=("^ls$" "^cd$" "^ " "^histdb" "^top$" "^htop$")
 
+if [[ -z "${HISTDB_TABULATE_CMD[*]:-}" ]]; then
+    declare -a HISTDB_TABULATE_CMD
+    HISTDB_TABULATE_CMD=(column -t -s $'\x1f')
+fi
+
 histdb-update-outcome () {
     local retval=$?
     local finished=$(date +%s)
@@ -115,8 +120,8 @@ histdb-top () {
             -header \
             "select count(*) as count, places.host, replace($field, '
 ', '
-$sep$sep') as ${1:-cmd} from history left join commands on history.command_id=commands.rowid left join places on history.place_id=places.rowid group by places.host, $field order by count(*)" |
-        column -t -s "$sep"
+$sep$sep') as ${1:-cmd} from history left join commands on history.command_id=commands.rowid left join places on history.place_id=places.rowid group by places.host, $field order by count(*)" | \
+        "${HISTDB_TABULATE_CMD[@]}"
 }
 
 histdb-sync () {
@@ -343,7 +348,7 @@ order by max_start desc) order by max_start asc"
             }
         fi
         if [[ $sep == $'\x1f' ]]; then
-            _histdb_query -header -separator $sep "$query" | iconv -f utf-8 -t utf-8 -c | column -t -s $sep | buffer
+            _histdb_query -header -separator $sep "$query" | iconv -f utf-8 -t utf-8 -c | "${HISTDB_TABULATE_CMD[@]}" | buffer
         else
             _histdb_query -header -separator $sep "$query" | buffer
         fi
