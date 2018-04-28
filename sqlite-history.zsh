@@ -12,8 +12,19 @@ sql_escape () {
 }
 
 _histdb_query () {
-    sqlite3 "${HISTDB_FILE}" "$@"
-    [[ "$?" -ne 0 ]] && echo "error in $@"
+    local max_tries=10
+    for ((i = 1; i <= max_tries; i++)); do
+        if sqlite3 "${HISTDB_FILE}" "$@" 2>/dev/null; then
+            break
+        elif [[ "$i" -ge "$max_tries" ]]; then
+            printf "histdb error: db may be locked. Was executing %s\n" "$*" 1>&2
+            return 1
+        elif [[ "$i" -eq "1" ]]; then
+            sleep .05
+        else
+            sleep "0.0$((1 + RANDOM % 10))"
+        fi
+    done
 }
 
 _histdb_init () {
