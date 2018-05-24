@@ -12,7 +12,7 @@ sql_escape () {
 }
 
 _histdb_query () {
-    sqlite3 "${HISTDB_FILE}" "$@"
+    sqlite3 -cmd ".timeout 1000" "${HISTDB_FILE}" "$@"
     [[ "$?" -ne 0 ]] && echo "error in $@"
 }
 
