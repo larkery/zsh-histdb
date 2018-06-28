@@ -8,7 +8,7 @@ typeset -g HISTDB_INSTALLED_IN="${(%):-%N}"
 typeset -g HISTDB_AWAITING_EXIT=0
 
 sql_escape () {
-    sed -e "s/'/''/g" <<< "$@"
+    sed -e "s/'/''/g" <<< "$@" | tr -d '\000'
 }
 
 _histdb_query () {
