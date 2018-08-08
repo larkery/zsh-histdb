@@ -60,7 +60,7 @@ where rowid = (select max(rowid) from history) and session = ${HISTDB_SESSION}"
     fi
 }
 
-zshaddhistory () {
+_histdb_addhistory () {
     local cmd="${1[0, -2]}"
 
     for boring in "${_BORING_COMMANDS[@]}"; do
@@ -96,6 +96,9 @@ where
     fi
     return 0
 }
+
+autoload -U add-zsh-hook
+add-zsh-hook zshaddhistory _histdb_addhistory
 
 histdb-top () {
     _histdb_init
