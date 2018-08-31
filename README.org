@@ -112,11 +112,9 @@ This query will find the most frequently issued command that is issued in the cu
   group by commands.argv
   order by places.dir != '$(sql_escape $PWD)', count(*) desc limit 1"
       suggestion=$(_histdb_query "$query")
-}
-
-   ZSH_AUTOSUGGEST_STRATEGY=histdb_top
-
   }
+
+  ZSH_AUTOSUGGEST_STRATEGY=histdb_top
 #+END_SRC
 
 This will find the most frequently issued command issued exactly in this directory, or if there are no matches it will find the most frequently issued command in any directory. You could use other fields like the hostname to restrict to suggestions on this host, etc.
