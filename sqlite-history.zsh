@@ -45,7 +45,7 @@ declare -ga _BORING_COMMANDS
 _BORING_COMMANDS=("^ls$" "^cd$" "^ " "^histdb" "^top$" "^htop$")
 
 if [[ -z "${HISTDB_TABULATE_CMD[*]:-}" ]]; then
-    declare -a HISTDB_TABULATE_CMD
+    declare -ga HISTDB_TABULATE_CMD
     HISTDB_TABULATE_CMD=(column -t -s $'\x1f')
 fi
 
