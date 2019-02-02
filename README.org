@@ -45,6 +45,14 @@ add-zsh-hook precmd histdb-update-outcome
 
 in your zsh startup files.
 
+** Note for OS X users
+
+Add the following line before you source `sqlite-history.zsh`. See https://github.com/larkery/zsh-histdb/pull/31 for details.
+
+#+BEGIN_SRC zsh
+HISTDB_TABULATE_CMD=(sed -e $'s/\x1f/\t/g')
+#+END_SRC
+
 ** Importing your old history
 
 https://github.com/drewis/go-histdbimport is a useful tool for doing this!
