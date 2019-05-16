@@ -19,7 +19,7 @@ INSERT INTO places (host, dir) SELECT host, dir FROM o.places;
 -- could uniquify sessions by host in this way too
 
 INSERT INTO history (session, command_id, place_id, exit_status, start_time, duration)
-SELECT HO.session, C.rowid, P.id, HO.exit_status, HO.start_time, HO.duration
+SELECT HO.session, C.id, P.id, HO.exit_status, HO.start_time, HO.duration
 FROM o.history HO
 LEFT JOIN o.places PO ON HO.place_id = PO.id
 LEFT JOIN o.commands CO ON HO.command_id = CO.id
