@@ -1,7 +1,11 @@
 which sqlite3 >/dev/null 2>&1 || return;
 
 typeset -g HISTDB_QUERY=""
-typeset -g HISTDB_FILE="${HOME}/.histdb/zsh-history.db"
+if [[ -z ${HISTDB_FILE} ]]; then
+	typeset -g HISTDB_FILE="${HOME}/.histdb/zsh-history.db"
+else
+	typeset -g HISTDB_FILE
+fi
 typeset -g HISTDB_SESSION=""
 typeset -g HISTDB_HOST=""
 typeset -g HISTDB_INSTALLED_IN="${(%):-%N}"
@@ -21,9 +25,24 @@ _histdb_check_version() {
 	local CURRENT_VERSION=$(_histdb_query 'PRAGMA user_version')
 	if [[ ${CURRENT_VERSION} -lt ${HISTDB_SCHEMA_VERSION} ]]; then
 		echo "HISTDB: The schema of the database is to old. Expect errors to happen. Got ${CURRENT_VERSION}, expected ${HISTDB_SCHEMA_VERSION}"
+		echo "HISTDB: Trying to update database"
+		_histdb_update_database
 	fi
 	if [[ ${CURRENT_VERSION} -gt ${HISTDB_SCHEMA_VERSION} ]]; then
 		echo "HISTDB: You are using a newer database schema than expected. Please update histdb. Got ${CURRENT_VERSION}, expected ${HISTDB_SCHEMA_VERSION}"
+	fi
+}
+_histdb_update_database() {
+	local CURRENT_VERSION=$(_histdb_query 'PRAGMA user_version')
+	local MIGRATION_FILENAME="$(dirname ${HISTDB_INSTALLED_IN})/db_migrations/${CURRENT_VERSION}to${HISTDB_SCHEMA_VERSION}.sql"
+	if [[ -f $MIGRATION_FILENAME ]]; then
+		echo "HISTDB: backing up database to ${HISTDB_FILE}.bak"
+		cp ${HISTDB_FILE} ${HISTDB_FILE}.bak
+		echo "HISTDB: applying ${MIGRATION_FILENAME} to ${HISTDB_FILE}"
+		sqlite3 ${HISTDB_FILE} < $MIGRATION_FILENAME
+		[[ "$?" -ne 0 ]] && (echo "HISTDB: error during database conversion";	cp ${HISTDB_FILE}.bak ${HISTDB_FILE}) || echo "HISTDB: update successfull"
+	else
+		echo "HISTDB: no update from ${CURRENT_VERSION} to ${HISTDB_SCHEMA_VERSION} found"
 	fi
 }
 
