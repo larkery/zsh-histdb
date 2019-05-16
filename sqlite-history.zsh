@@ -1,7 +1,11 @@
 which sqlite3 >/dev/null 2>&1 || return;
 
 typeset -g HISTDB_QUERY=""
-typeset -g HISTDB_FILE="${HOME}/.histdb/zsh-history.db"
+if [[ -z ${HISTDB_FILE} ]]; then
+	typeset -g HISTDB_FILE="${HOME}/.histdb/zsh-history.db"
+else
+	typeset -g HISTDB_FILE
+fi
 typeset -g HISTDB_SESSION=""
 typeset -g HISTDB_HOST=""
 typeset -g HISTDB_INSTALLED_IN="${(%):-%N}"
