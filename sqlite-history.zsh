@@ -6,6 +6,7 @@ typeset -g HISTDB_SESSION=""
 typeset -g HISTDB_HOST=""
 typeset -g HISTDB_INSTALLED_IN="${(%):-%N}"
 typeset -g HISTDB_AWAITING_EXIT=0
+typeset -g HISTDB_SCHEMA_VERSION=2
 
 sql_escape () {
     sed -e "s/'/''/g" <<< "$@" | tr -d '\000'
@@ -13,7 +14,17 @@ sql_escape () {
 
 _histdb_query () {
     sqlite3 -cmd ".timeout 1000" "${HISTDB_FILE}" "$@"
-    [[ "$?" -ne 0 ]] && echo "error in $@"
+    [[ "$?" -ne 0 ]] && echo "error in $@" 
+}
+
+_histdb_check_version() {
+	local CURRENT_VERSION=$(_histdb_query 'PRAGMA user_version')
+	if [[ ${CURRENT_VERSION} -lt ${HISTDB_SCHEMA_VERSION} ]]; then
+		echo "HISTDB: The schema of the database is to old. Expect errors to happen. Got ${CURRENT_VERSION}, expected ${HISTDB_SCHEMA_VERSION}"
+	fi
+	if [[ ${CURRENT_VERSION} -gt ${HISTDB_SCHEMA_VERSION} ]]; then
+		echo "HISTDB: You are using a newer database schema than expected. Please update histdb. Got ${CURRENT_VERSION}, expected ${HISTDB_SCHEMA_VERSION}"
+	fi
 }
 
 _histdb_init () {
@@ -32,9 +43,11 @@ create table history  (id integer primary key autoincrement,
                        exit_status int,
                        start_time int,
                        duration int);
+PRAGMA user_version = 2
 EOF
     fi
     if [[ -z "${HISTDB_SESSION}" ]]; then
+				_histdb_check_version
         HISTDB_HOST="'$(sql_escape ${HOST})'"
         HISTDB_SESSION=$(_histdb_query "select 1+max(session) from history inner join places on places.id=history.place_id where places.host = ${HISTDB_HOST}")
         HISTDB_SESSION="${HISTDB_SESSION:-0}"
