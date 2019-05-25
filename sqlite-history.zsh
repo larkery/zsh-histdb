@@ -5,7 +5,6 @@ typeset -g HISTDB_FILE="${HOME}/.histdb/zsh-history.db"
 typeset -g HISTDB_SESSION=""
 typeset -g HISTDB_HOST=""
 typeset -g HISTDB_INSTALLED_IN="${(%):-%N}"
-typeset -g HISTDB_AWAITING_EXIT=0
 
 sql_escape () {
     sed -e "s/'/''/g" <<< "$@" | tr -d '\000'
@@ -52,12 +51,11 @@ fi
 histdb-update-outcome () {
     local retval=$?
     local finished=$(date +%s)
-    if [[ $HISTDB_AWAITING_EXIT == 1 ]]; then
-        _histdb_init
-        _histdb_query "update history set exit_status = ${retval}, duration = ${finished} - start_time
-where rowid = (select max(rowid) from history) and session = ${HISTDB_SESSION}"
-        HISTDB_AWAITING_EXIT=0
-    fi
+    _histdb_init
+    _histdb_query <<-EOF
+update history set exit_status = ${retval}, duration = ${finished} - start_time
+where id = (select max(id) from history where session=${HISTDB_SESSION}) and exit_status IS NULL;
+EOF
 }
 
 zshaddhistory () {
@@ -92,7 +90,6 @@ where
   places.host = ${HISTDB_HOST} and
   places.dir = ${pwd}
 ;"
-        HISTDB_AWAITING_EXIT=1
     fi
     return 0
 }
