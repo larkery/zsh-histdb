@@ -54,7 +54,7 @@ histdb-update-outcome () {
     _histdb_init
     _histdb_query <<-EOF
 update history set exit_status = ${retval}, duration = ${finished} - start_time
-where id = (select max(id) from history where session=${HISTDB_SESSION}) and exit_status IS NULL;
+where id = (select max(rowid) from history where session=${HISTDB_SESSION}) and exit_status IS NULL;
 EOF
 }
 
