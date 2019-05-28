@@ -1,8 +1,14 @@
 #!/usr/bin/env zsh
 
+typeset -g HERE=$(dirname "${(%):-%N}")
+
 local ancestor=${1:?three databases required}; shift
 local ours=${1:?three databases required}; shift
 local theirs=${1:?three databases required}
+
+$HERE/histdb-migrate $ancestor
+$HERE/histdb-migrate $ours
+$HERE/histdb-migrate $theirs
 
 # for reasons I cannot use the encryption filter here.
 # most annoying.
