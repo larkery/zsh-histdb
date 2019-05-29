@@ -1,7 +1,11 @@
 which sqlite3 >/dev/null 2>&1 || return;
 
 typeset -g HISTDB_QUERY=""
-typeset -g HISTDB_FILE="${HOME}/.histdb/zsh-history.db"
+if [[ -z ${HISTDB_FILE} ]]; then
+    typeset -g HISTDB_FILE="${HOME}/.histdb/zsh-history.db"
+else
+    typeset -g HISTDB_FILE
+fi
 typeset -g HISTDB_SESSION=""
 typeset -g HISTDB_HOST=""
 typeset -g HISTDB_INSTALLED_IN="${(%):-%N}"
@@ -23,19 +27,22 @@ _histdb_init () {
             mkdir -p -- "$hist_dir"
         fi
         _histdb_query <<-EOF
-create table commands (argv text, unique(argv) on conflict ignore);
-create table places   (host text, dir text, unique(host, dir) on conflict ignore);
-create table history  (session int,
-                       command_id int references commands (rowid),
-                       place_id int references places (rowid),
+create table commands (id integer primary key autoincrement, argv text, unique(argv) on conflict ignore);
+create table places   (id integer primary key autoincrement, host text, dir text, unique(host, dir) on conflict ignore);
+create table history  (id integer primary key autoincrement,
+                       session int,
+                       command_id int references commands (id),
+                       place_id int references places (id),
                        exit_status int,
                        start_time int,
                        duration int);
+PRAGMA user_version = 2
 EOF
     fi
     if [[ -z "${HISTDB_SESSION}" ]]; then
+        $(dirname ${HISTDB_INSTALLED_IN})/histdb-migrate "${HISTDB_FILE}"
         HISTDB_HOST="'$(sql_escape ${HOST})'"
-        HISTDB_SESSION=$(_histdb_query "select 1+max(session) from history inner join places on places.rowid=history.place_id where places.host = ${HISTDB_HOST}")
+        HISTDB_SESSION=$(_histdb_query "select 1+max(session) from history inner join places on places.id=history.place_id where places.host = ${HISTDB_HOST}")
         HISTDB_SESSION="${HISTDB_SESSION:-0}"
         readonly HISTDB_SESSION
     fi
@@ -55,7 +62,7 @@ histdb-update-outcome () {
     if [[ $HISTDB_AWAITING_EXIT == 1 ]]; then
         _histdb_init
         _histdb_query "update history set exit_status = ${retval}, duration = ${finished} - start_time
-where rowid = (select max(rowid) from history) and session = ${HISTDB_SESSION}"
+where id = (select max(id) from history) and session = ${HISTDB_SESSION}"
         HISTDB_AWAITING_EXIT=0
     fi
 }
@@ -82,8 +89,8 @@ insert into history
   (session, command_id, place_id, start_time)
 select
   ${HISTDB_SESSION},
-  commands.rowid,
-  places.rowid,
+  commands.id,
+  places.id,
   ${started}
 from
   commands, places
@@ -107,12 +114,12 @@ histdb-top () {
     case "$1" in
         dir)
             field=places.dir
-            join='places.rowid = history.place_id'
+            join='places.id = history.place_id'
             table=places
             ;;
         cmd)
             field=commands.argv
-            join='commands.rowid = history.command_id'
+            join='commands.id = history.command_id'
             table=commands
             ;;;
     esac
@@ -120,7 +127,7 @@ histdb-top () {
             -header \
             "select count(*) as count, places.host, replace($field, '
 ', '
-$sep$sep') as ${1:-cmd} from history left join commands on history.command_id=commands.rowid left join places on history.place_id=places.rowid group by places.host, $field order by count(*)" | \
+$sep$sep') as ${1:-cmd} from history left join commands on history.command_id=commands.id left join places on history.place_id=places.id group by places.host, $field order by count(*)" | \
         "${HISTDB_TABULATE_CMD[@]}"
 }
 
@@ -313,8 +320,8 @@ $seps') as argv, max(start_time) as max_start"
     local query="select ${selcols} from (select ${cols}
 from
   history
-  left join commands on history.command_id = commands.rowid
-  left join places on history.place_id = places.rowid
+  left join commands on history.command_id = commands.id
+  left join places on history.place_id = places.id
 where ${where}
 group by history.command_id, history.place_id
 order by max_start desc
@@ -324,8 +331,8 @@ ${limit:+limit $limit}) order by max_start asc"
     local count_query="select count(*) from (select ${cols}
 from
   history
-  left join commands on history.command_id = commands.rowid
-  left join places on history.place_id = places.rowid
+  left join commands on history.command_id = commands.id
+  left join places on history.place_id = places.id
 where ${where}
 group by history.command_id, history.place_id
 order by max_start desc) order by max_start asc"
@@ -359,13 +366,13 @@ order by max_start desc) order by max_start asc"
         read -q "REPLY?Forget all these results? [y/n] "
         if [[ $REPLY =~ "[yY]" ]]; then
             _histdb_query "delete from history where
-history.rowid in (
-select history.rowid from
+history.id in (
+select history.id from
 history
-  left join commands on history.command_id = commands.rowid
-  left join places on history.place_id = places.rowid
+  left join commands on history.command_id = commands.id
+  left join places on history.place_id = places.id
 where ${where})"
-            _histdb_query "delete from commands where commands.rowid not in (select distinct history.command_id from history)"
+            _histdb_query "delete from commands where commands.id not in (select distinct history.command_id from history)"
         fi
     fi
 }
