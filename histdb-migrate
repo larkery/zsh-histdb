@@ -1,6 +1,7 @@
 #!/usr/bin/env zsh
 
 typeset -g HISTDB_SCHEMA_VERSION=2
+typeset -g HISTDB_INSTALLED_IN="${(%):-%N}"
 
 local TARGET_FILE="$1"
 local CURRENT_VERSION=$(sqlite3 "${TARGET_FILE}" 'PRAGMA user_version')
