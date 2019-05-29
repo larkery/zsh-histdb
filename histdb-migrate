@@ -10,6 +10,7 @@ if [[ ${CURRENT_VERSION} -lt ${HISTDB_SCHEMA_VERSION} ]]; then
     if [[ -f $MIGRATION_FILENAME ]]; then
         local BACKUP_FILE="${TARGET_FILE}-$(date +%s).bak"
         echo "Backing up database to ${BACKUP_FILE} before migration"
+        cp ${BACKUP_FILE} ${HISTDB_FILE}
         sqlite3 "${TARGET_FILE}" < "${MIGRATION_FILENAME}"
         local R="$?"
         [[ "$R" -ne 0 ]] && (echo "Error during database conversion"; cp ${BACKUP_FILE} ${HISTDB_FILE}) || echo "Update successful (you may want to remove the backup)"
