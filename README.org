@@ -3,6 +3,8 @@
 * News
 - 29/05/19 :: Thanks to Matthias Bilger (https://github.com/m42e/) a bug has been removed which would have broken the database if the vacuum command were used. Turns out, you can't use rowid as a foreign key unless you've given it a name. As a side-effect your database will need updating, in a non-backwards compatible way, so you'll need to update on all your installations at once if you share a history file.
               Also, it's not impossible that this change will make a problem for someone somewhere, so be careful with this update.
+
+              Also thanks to Matthias, the exit status of long-running commands is handled better.
 - 05/04/18 :: I've done a bit of work to make a replacement reverse-isearch function, which is in a usable state now.
 
               If you want to use it, see the [[Reverse isearch]] section below which now covers it.
