@@ -39,7 +39,7 @@ PRAGMA user_version = 2
 EOF
     fi
     if [[ -z "${HISTDB_SESSION}" ]]; then
-        $(dirname ${HISTDB_INSTALLED_IN})/histdb-migrate "${HISTDB_FILE}"
+        $(dirname ${HISTDB_INSTALLED_IN})/bin/histdb-migrate "${HISTDB_FILE}"
         HISTDB_HOST="'$(sql_escape ${HOST})'"
         HISTDB_SESSION=$(_histdb_query "select 1+max(session) from history inner join places on places.id=history.place_id where places.host = ${HISTDB_HOST}")
         HISTDB_SESSION="${HISTDB_SESSION:-0}"
@@ -51,7 +51,7 @@ declare -ga _BORING_COMMANDS
 _BORING_COMMANDS=("^ls$" "^cd$" "^ " "^histdb" "^top$" "^htop$")
 
 if [[ -z "${HISTDB_TABULATE_CMD[*]:-}" ]]; then
-    declare -a HISTDB_TABULATE_CMD
+    declare -ga HISTDB_TABULATE_CMD
     HISTDB_TABULATE_CMD=(column -t -s $'\x1f')
 fi
 
@@ -140,7 +140,7 @@ histdb-sync () {
         pushd "$hist_dir"
         if [[ $(git rev-parse --is-inside-work-tree) != "true" ]] || [[ "$(git rev-parse --show-toplevel)" != "$(pwd)" ]]; then
             git init
-            git config merge.histdb.driver "$(dirname ${HISTDB_INSTALLED_IN})/histdb-merge %O %A %B"
+            git config merge.histdb.driver "$(dirname ${HISTDB_INSTALLED_IN})/bin/histdb-merge %O %A %B"
             echo "$(basename ${HISTDB_FILE}) merge=histdb" | tee -a .gitattributes &>-
             git add .gitattributes
             git add "$(basename ${HISTDB_FILE})"
