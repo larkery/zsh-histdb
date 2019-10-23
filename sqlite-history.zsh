@@ -20,6 +20,10 @@ _histdb_query () {
 }
 
 _histdb_init () {
+    if [[ -n "${HISTDB_SESSION}" ]]; then
+        return
+    fi
+    
     if ! [[ -e "${HISTDB_FILE}" ]]; then
         local hist_dir="$(dirname ${HISTDB_FILE})"
         if ! [[ -d "$hist_dir" ]]; then
@@ -45,6 +49,14 @@ EOF
         HISTDB_SESSION="${HISTDB_SESSION:-0}"
         readonly HISTDB_SESSION
     fi
+
+    _histdb_query >/dev/null <<EOF
+create index if not exists hist_time on history(start_time);
+create index if not exists place_dir on places(dir);
+create index if not exists place_host on places(host);
+create index if not exists history_command_place on history(command_id, place_id);
+PRAGMA journal_mode = WAL;
+EOF
 }
 
 declare -ga _BORING_COMMANDS
@@ -60,7 +72,7 @@ histdb-update-outcome () {
     local finished=$(date +%s)
 
     _histdb_init
-    _histdb_query <<EOF
+    _histdb_query <<EOF &|
 update history set 
       exit_status = ${retval}, 
       duration = ${finished} - start_time
@@ -86,7 +98,7 @@ zshaddhistory () {
 
     if [[ "$cmd" != "''" ]]; then
         _histdb_query \
-"insert into commands (argv) values (${cmd});
+            "insert into commands (argv) values (${cmd});
 insert into places   (host, dir) values (${HISTDB_HOST}, ${pwd});
 insert into history
   (session, command_id, place_id, start_time)
@@ -101,7 +113,7 @@ where
   commands.argv = ${cmd} and
   places.host = ${HISTDB_HOST} and
   places.dir = ${pwd}
-;"
+;" &|
     fi
     return 0
 }
@@ -188,7 +200,7 @@ histdb () {
 
     local selcols="session as ses, dir"
     local cols="session, replace(places.dir, '$HOME', '~') as dir"
-    local where="not (commands.argv like 'histdb%')"
+    local where="true"
     if [[ -p /dev/stdout ]]; then
         local limit=""
     else
@@ -321,9 +333,9 @@ $seps') as argv, max(start_time) as max_start"
 
     local query="select ${selcols} from (select ${cols}
 from
-  history
-  left join commands on history.command_id = commands.id
-  left join places on history.place_id = places.id
+  commands 
+  join history on history.command_id = commands.id
+  join places on history.place_id = places.id
 where ${where}
 group by history.command_id, history.place_id
 order by max_start desc
@@ -332,9 +344,9 @@ ${limit:+limit $limit}) order by max_start asc"
     ## min max date?
     local count_query="select count(*) from (select ${cols}
 from
-  history
-  left join commands on history.command_id = commands.id
-  left join places on history.place_id = places.id
+  commands
+  join history on history.command_id = commands.id
+  join places  on history.place_id = places.id
 where ${where}
 group by history.command_id, history.place_id
 order by max_start desc) order by max_start asc"
