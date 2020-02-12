@@ -26,7 +26,7 @@ It is also possible to merge multiple history databases together without conflic
 
 * Installation
 
-You will need ~sqlite3~ (*version* > 3.23.0) and the usual coreutils commands installed on your ~PATH~.
+You will need ~sqlite3~ and the usual coreutils commands installed on your ~PATH~.
 To load and activate history recording you need to source ~sqlite-history.zsh~ from your shell in your zsh startup files.
 
 If you want the history to contain correct timing information, you will also need to run ~histdb-update-outcome~ in your ~precmd~ hook
