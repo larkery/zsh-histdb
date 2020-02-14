@@ -200,7 +200,7 @@ histdb () {
 
     local selcols="session as ses, dir"
     local cols="session, replace(places.dir, '$HOME', '~') as dir"
-    local where="true"
+    local where="1"
     if [[ -p /dev/stdout ]]; then
         local limit=""
     else
