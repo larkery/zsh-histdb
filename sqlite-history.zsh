@@ -10,6 +10,8 @@ typeset -g HISTDB_SESSION=""
 typeset -g HISTDB_HOST=""
 typeset -g HISTDB_INSTALLED_IN="${(%):-%N}"
 
+
+
 sql_escape () {
     sed -e "s/'/''/g" <<< "$@" | tr -d '\000'
 }
@@ -17,6 +19,23 @@ sql_escape () {
 _histdb_query () {
     sqlite3 -cmd ".timeout 1000" "${HISTDB_FILE}" "$@"
     [[ "$?" -ne 0 ]] && echo "error in $@"
+}
+
+start_sqlite_pipe () {
+    local PIPE=$(mktemp -u)
+    setopt local_options no_notify no_monitor
+    mkfifo $PIPE
+    exec {HISTDB_FD}<>$PIPE
+    rm $PIPE
+    sqlite3 -batch "${HISTDB_FILE}" <&$HISTDB_FD >/dev/null &|
+    zshexit() { exec {HISTDB_FD}>&-; } # https://stackoverflow.com/a/22794374/2639190
+}
+
+start_sqlite_pipe
+
+_histdb_query_batch () {
+    cat >&$HISTDB_FD
+    echo ';' >&$HISTDB_FD # make sure last command is executed
 }
 
 _histdb_init () {
@@ -29,7 +48,7 @@ _histdb_init () {
         if ! [[ -d "$hist_dir" ]]; then
             mkdir -p -- "$hist_dir"
         fi
-        _histdb_query <<-EOF
+        _histdb_query_batch <<-EOF
 create table commands (id integer primary key autoincrement, argv text, unique(argv) on conflict ignore);
 create table places   (id integer primary key autoincrement, host text, dir text, unique(host, dir) on conflict ignore);
 create table history  (id integer primary key autoincrement,
@@ -39,7 +58,7 @@ create table history  (id integer primary key autoincrement,
                        exit_status int,
                        start_time int,
                        duration int);
-PRAGMA user_version = 2
+PRAGMA user_version = 2;
 EOF
     fi
     if [[ -z "${HISTDB_SESSION}" ]]; then
@@ -50,12 +69,13 @@ EOF
         readonly HISTDB_SESSION
     fi
 
-    _histdb_query >/dev/null <<EOF
+    _histdb_query_batch >/dev/null <<EOF
 create index if not exists hist_time on history(start_time);
 create index if not exists place_dir on places(dir);
 create index if not exists place_host on places(host);
 create index if not exists history_command_place on history(command_id, place_id);
 PRAGMA journal_mode = WAL;
+PRAGMA synchronous=normal;
 EOF
 }
 
@@ -72,7 +92,7 @@ histdb-update-outcome () {
     local finished=$(date +%s)
 
     _histdb_init
-    _histdb_query <<EOF &|
+    _histdb_query_batch <<EOF &|
 update history set 
       exit_status = ${retval}, 
       duration = ${finished} - start_time
@@ -97,8 +117,8 @@ zshaddhistory () {
     _histdb_init
 
     if [[ "$cmd" != "''" ]]; then
-        _histdb_query \
-            "insert into commands (argv) values (${cmd});
+        _histdb_query_batch <<EOF &|
+insert into commands (argv) values (${cmd});
 insert into places   (host, dir) values (${HISTDB_HOST}, ${pwd});
 insert into history
   (session, command_id, place_id, start_time)
@@ -113,7 +133,8 @@ where
   commands.argv = ${cmd} and
   places.host = ${HISTDB_HOST} and
   places.dir = ${pwd}
-;" &|
+;
+EOF
     fi
     return 0
 }
