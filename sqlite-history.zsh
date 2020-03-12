@@ -21,7 +21,7 @@ _histdb_query () {
     [[ "$?" -ne 0 ]] && echo "error in $@"
 }
 
-start_sqlite_pipe () {
+_histdb_start_sqlite_pipe () {
     local PIPE=$(mktemp -u)
     setopt local_options no_notify no_monitor
     mkfifo $PIPE
@@ -31,7 +31,7 @@ start_sqlite_pipe () {
     zshexit() { exec {HISTDB_FD}>&-; } # https://stackoverflow.com/a/22794374/2639190
 }
 
-start_sqlite_pipe
+_histdb_start_sqlite_pipe
 
 _histdb_query_batch () {
     cat >&$HISTDB_FD
