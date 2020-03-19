@@ -1,5 +1,7 @@
 which sqlite3 >/dev/null 2>&1 || return;
 
+zmodload zsh/system # for sysopen
+
 typeset -g HISTDB_QUERY=""
 if [[ -z ${HISTDB_FILE} ]]; then
     typeset -g HISTDB_FILE="${HOME}/.histdb/zsh-history.db"
@@ -25,7 +27,7 @@ start_sqlite_pipe () {
     local PIPE=$(mktemp -u)
     setopt local_options no_notify no_monitor
     mkfifo $PIPE
-    exec {HISTDB_FD}<>$PIPE
+    sysopen -rw -o cloexec -u HISTDB_FD -- $PIPE
     rm $PIPE
     sqlite3 -batch "${HISTDB_FILE}" <&$HISTDB_FD >/dev/null &|
     zshexit() { exec {HISTDB_FD}>&-; } # https://stackoverflow.com/a/22794374/2639190
