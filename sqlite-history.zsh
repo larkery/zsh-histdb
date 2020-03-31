@@ -28,7 +28,7 @@ _histdb_start_sqlite_pipe () {
     setopt local_options no_notify no_monitor
     mkfifo $PIPE
     sysopen -rw -o cloexec -u HISTDB_FD -- $PIPE
-    rm $PIPE
+    rm -f $PIPE
     sqlite3 -batch "${HISTDB_FILE}" <&$HISTDB_FD >/dev/null &|
     zshexit() { exec {HISTDB_FD}>&-; } # https://stackoverflow.com/a/22794374/2639190
 }
