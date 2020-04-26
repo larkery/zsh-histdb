@@ -181,6 +181,7 @@ histdb-sync () {
             git add .gitattributes .gitignore
             git add "$(basename ${HISTDB_FILE})"
         fi
+        _histdb_query "PRAGMA wal_checkpoint(RESTART)" >/dev/null && \
         git commit -am "history" && git pull --no-edit && git push
         popd > /dev/null
     fi
