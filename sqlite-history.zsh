@@ -177,7 +177,8 @@ histdb-sync () {
             git init
             git config merge.histdb.driver "$(dirname ${HISTDB_INSTALLED_IN})/histdb-merge %O %A %B"
             echo "$(basename ${HISTDB_FILE}) merge=histdb" | tee -a .gitattributes &>-
-            git add .gitattributes
+            echo -e "*.db-shm\n*.db-wal" > .gitignore
+            git add .gitattributes .gitignore
             git add "$(basename ${HISTDB_FILE})"
         fi
         git commit -am "history" && git pull --no-edit && git push
