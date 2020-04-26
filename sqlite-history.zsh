@@ -173,7 +173,7 @@ histdb-sync () {
     local hist_dir="$(dirname ${HISTDB_FILE})"
     if [[ -d "$hist_dir" ]]; then
         pushd "$hist_dir"
-        if [[ $(git rev-parse --is-inside-work-tree) != "true" ]] || [[ "$(git rev-parse --show-toplevel)" != "$(pwd)" ]]; then
+        if [[ $(git rev-parse --is-inside-work-tree) != "true" ]] || [[ "$(git rev-parse --show-toplevel)" != "$(pwd -P)" ]]; then
             git init
             git config merge.histdb.driver "$(dirname ${HISTDB_INSTALLED_IN})/histdb-merge %O %A %B"
             echo "$(basename ${HISTDB_FILE}) merge=histdb" | tee -a .gitattributes &>-
