@@ -1,6 +1,6 @@
 which sqlite3 >/dev/null 2>&1 || return;
 
-zmodload zsh/system # for sysopen
+zmodload zsh/system # for sysopen and flock
 
 typeset -g HISTDB_QUERY=""
 if [[ -z ${HISTDB_FILE} ]]; then
@@ -12,8 +12,6 @@ typeset -g HISTDB_SESSION=""
 typeset -g HISTDB_HOST=""
 typeset -g HISTDB_INSTALLED_IN="${(%):-%N}"
 
-
-
 sql_escape () {
     sed -e "s/'/''/g" <<< "$@" | tr -d '\000'
 }
@@ -23,19 +21,48 @@ _histdb_query () {
     [[ "$?" -ne 0 ]] && echo "error in $@"
 }
 
+trap '
+if [[ -z $HISTDB_FD ]]; then
+   _histdb_start_sqlite_pipe
+else
+   _histdb_stop_sqlite_pipe
+fi
+' USR1
+
 _histdb_start_sqlite_pipe () {
     local PIPE=$(mktemp -u)
     setopt local_options no_notify no_monitor
     mkfifo $PIPE
     sysopen -rw -o cloexec -u HISTDB_FD -- $PIPE
     command rm $PIPE
+        
     sqlite3 -batch "${HISTDB_FILE}" <&$HISTDB_FD >/dev/null &|
-    zshexit() { exec {HISTDB_FD}>&-; } # https://stackoverflow.com/a/22794374/2639190
+    zshexit() {
+        local lockvar
+        zsystem flock -f lockvar ~/.zsh-histdb-pids.lock
+        sed "/^$$\$/d" -i ~/.zsh-histdb-pids
+        _histdb_stop_sqlite_pipe
+        zsystem flock -u $lockvar
+
+    } # https://stackoverflow.com/a/22794374/2639190
 }
 
-_histdb_start_sqlite_pipe
+_histdb_stop_sqlite_pipe () {
+    exec {HISTDB_FD}>&-;
+    unset HISTDB_FD
+}
+
+{   # horrible messaging primitives
+    local lockvar
+    touch ~/.zsh-histdb-pids.lock
+    zsystem flock -f lockvar ~/.zsh-histdb-pids.lock
+    echo "$$" >> ~/.zsh-histdb-pids
+    _histdb_start_sqlite_pipe
+    zsystem flock -u $lockvar
+}
 
 _histdb_query_batch () {
+    [[ -z $HISTDB_FD ]] && return;
     cat >&$HISTDB_FD
     echo ';' >&$HISTDB_FD # make sure last command is executed
 }

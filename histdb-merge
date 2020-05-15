@@ -1,5 +1,16 @@
 #!/usr/bin/env zsh
 
+zmodload zsh/system # for flock
+zmodload zsh/mapfile
+
+local lockvar
+touch ~/.zsh-histdb-pids.lock ~/.zsh-histdb-pids
+zsystem flock -f lockvar ~/.zsh-histdb-pids.lock
+
+PIDS=( "${(f)mapfile[$HOME/.zsh-histdb-pids]}" )
+
+kill -USR1 $PIDS
+
 typeset -g HERE=$(dirname "${(%):-%N}")
 
 local ancestor=${1:?three databases required}; shift
@@ -53,3 +64,6 @@ AND P.dir = PO.dir)
 WHERE HO.id > (SELECT MAX(rowid) FROM a.history)
 ;
 EOF
+
+kill -USR1 $PIDS
+zsystem flock -u $lockvar
