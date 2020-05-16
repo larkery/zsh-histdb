@@ -41,7 +41,6 @@ _histdb_start_sqlite_pipe
 _histdb_query_batch () {
     local CUR_INODE=$(stat -c %i ${HISTDB_FILE})
     if [[ $CUR_INODE != $HISTDB_INODE ]]; then
-        HISTDB_INODE=$CUR_INODE
         exec {HISTDB_FD}>&-;
         _histdb_start_sqlite_pipe
     fi
