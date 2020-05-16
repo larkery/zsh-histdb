@@ -8,6 +8,8 @@ if [[ -z ${HISTDB_FILE} ]]; then
 else
     typeset -g HISTDB_FILE
 fi
+
+typeset -g HISTDB_INODE=""
 typeset -g HISTDB_SESSION=""
 typeset -g HISTDB_HOST=""
 typeset -g HISTDB_INSTALLED_IN="${(%):-%N}"
@@ -29,6 +31,7 @@ _histdb_start_sqlite_pipe () {
     mkfifo $PIPE
     sysopen -rw -o cloexec -u HISTDB_FD -- $PIPE
     command rm $PIPE
+    HISTDB_INODE=$(stat -c %i ${HISTDB_FILE})
     sqlite3 -batch "${HISTDB_FILE}" <&$HISTDB_FD >/dev/null &|
     zshexit() { exec {HISTDB_FD}>&-; } # https://stackoverflow.com/a/22794374/2639190
 }
@@ -36,6 +39,12 @@ _histdb_start_sqlite_pipe () {
 _histdb_start_sqlite_pipe
 
 _histdb_query_batch () {
+    local CUR_INODE=$(stat -c %i ${HISTDB_FILE})
+    if [[ $CUR_INODE != $HISTDB_INODE ]]; then
+        HISTDB_INODE=$CUR_INODE
+        exec {HISTDB_FD}>&-;
+        _histdb_start_sqlite_pipe
+    fi
     cat >&$HISTDB_FD
     echo ';' >&$HISTDB_FD # make sure last command is executed
 }
@@ -170,6 +179,11 @@ $sep$sep') as ${1:-cmd} from history left join commands on history.command_id=co
 
 histdb-sync () {
     _histdb_init
+
+    # this ought to apply to other readers?
+    echo "truncating WAL"
+    echo 'pragma wal_checkpoint(truncate);' | _histdb_query_batch
+    
     local hist_dir="$(dirname ${HISTDB_FILE})"
     if [[ -d "$hist_dir" ]]; then
         pushd "$hist_dir"
@@ -183,6 +197,8 @@ histdb-sync () {
         git commit -am "history" && git pull --no-edit && git push
         popd
     fi
+
+    echo 'pragma wal_checkpoint(passive);' | _histdb_query_batch
 }
 
 histdb () {
