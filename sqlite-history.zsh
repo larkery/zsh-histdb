@@ -49,8 +49,6 @@ _histdb_start_sqlite_pipe () {
     }
 }
 
-_histdb_start_sqlite_pipe
-
 _histdb_query_batch () {
     local CUR_INODE=$(stat -c %i ${HISTDB_FILE})
     if [[ $CUR_INODE != $HISTDB_INODE ]]; then
@@ -71,7 +69,7 @@ _histdb_init () {
         if ! [[ -d "$hist_dir" ]]; then
             mkdir -p -- "$hist_dir"
         fi
-        _histdb_query_batch <<-EOF
+        _histdb_query <<-EOF
 create table commands (id integer primary key autoincrement, argv text, unique(argv) on conflict ignore);
 create table places   (id integer primary key autoincrement, host text, dir text, unique(host, dir) on conflict ignore);
 create table history  (id integer primary key autoincrement,
@@ -92,6 +90,7 @@ EOF
         readonly HISTDB_SESSION
     fi
 
+    _histdb_start_sqlite_pipe
     _histdb_query_batch >/dev/null <<EOF
 create index if not exists hist_time on history(start_time);
 create index if not exists place_dir on places(dir);
