@@ -59,7 +59,7 @@ _histdb_isearch_query () {
 commands.argv,
 places.dir,
 places.host,
-datetime(max(history.start_time), 'unixepoch')
+datetime(max(history.start_time), 'unixepoch', 'localtime')
 from history left join commands
 on history.command_id = commands.rowid
 left join places
