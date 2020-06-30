@@ -115,6 +115,7 @@ fi
 _histdb_update_outcome () {
     local retval=$?
     local finished=$(date +%s)
+    [[ -z "${HISTDB_SESSION}" ]] && return
 
     _histdb_init
     _histdb_query_batch <<EOF &|
