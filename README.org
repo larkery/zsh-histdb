@@ -1,6 +1,10 @@
 #+TITLE:ZSH History Database
 
 * News
+- 30/06/20 :: Thanks to rolandwalker, add-zsh-hook is used so histdb is a better citizen.
+  Thanks to GreenArchon and phiresky the sqlite helper process is terminated on exit better, and the WAL is truncated before doing histdb sync. This should make things behave a bit better. Thanks to gabreal (and others, I think), some things have been changed to ~declare -ga~ which helps when using antigen or somesuch? Thanks to sheperdjerred and fuero there is now a file which might make antigen and oh-my-zsh work.
+
+  There is a *breaking change*, which is that you no longer need to ~add-zsh-hook precmd histdb-update-outcome~ in your rc file. This now happens when you source ~sqlite-history.zsh~.
 - 11/03/20 :: Thanks to phiresky (https://github.com/phiresky) history appends within a shell session are performed through a single long-running sqlite process rather than by starting a new process per history append. This reduces contention between shells that are trying to write, as sqlite always fsyncs on exit.
 - 29/05/19 :: Thanks to Matthias Bilger (https://github.com/m42e/) a bug has been removed which would have broken the database if the vacuum command were used. Turns out, you can't use rowid as a foreign key unless you've given it a name. As a side-effect your database will need updating, in a non-backwards compatible way, so you'll need to update on all your installations at once if you share a history file.
               Also, it's not impossible that this change will make a problem for someone somewhere, so be careful with this update.
