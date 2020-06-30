@@ -1,6 +1,7 @@
 which sqlite3 >/dev/null 2>&1 || return;
 
 zmodload zsh/system # for sysopen
+autoload -U add-zsh-hook
 
 typeset -g HISTDB_QUERY=""
 if [[ -z ${HISTDB_FILE} ]]; then
@@ -26,6 +27,19 @@ _histdb_query () {
     [[ "$?" -ne 0 ]] && echo "error in $@"
 }
 
+_histdb_stop_sqlite_pipe () {
+    exec {HISTDB_FD}>&-;  # https://stackoverflow.com/a/22794374/2639190
+
+    # Sometimes, it seems like closing the fd does not terminate the
+    # sqlite batch process, so here is a horrible fallback.
+    ps -o args= --pid $HISTDB_SQLITE_PID | read -r args
+    if [[ $args == "sqlite3 -batch ${HISTDB_FILE}" ]]; then
+        kill -TERM $HISTDB_SQLITE_PID
+    fi
+}
+
+add-zsh-hook zshexit _histdb_stop_sqlite_pipe
+
 _histdb_start_sqlite_pipe () {
     local PIPE=$(mktemp -u)
     setopt local_options no_notify no_monitor
@@ -36,17 +50,6 @@ _histdb_start_sqlite_pipe () {
     
     sqlite3 -batch "${HISTDB_FILE}" <&$HISTDB_FD >/dev/null &|
     HISTDB_SQLITE_PID=$!
-    
-    zshexit() {
-        exec {HISTDB_FD}>&-;  # https://stackoverflow.com/a/22794374/2639190
-
-        # Sometimes, it seems like closing the fd does not terminate the
-        # sqlite batch process, so here is a horrible fallback.
-        ps -o args= --pid $HISTDB_SQLITE_PID | read -r args
-        if [[ $args == "sqlite3 -batch ${HISTDB_FILE}" ]]; then
-            kill -TERM $HISTDB_SQLITE_PID
-        fi
-    }
 }
 
 _histdb_query_batch () {
@@ -124,7 +127,7 @@ where id = (select max(id) from history) and
 EOF
 }
 
-zshaddhistory () {
+_histdb_addhistory () {
     local cmd="${1[0, -2]}"
 
     for boring in "${_BORING_COMMANDS[@]}"; do
@@ -160,6 +163,8 @@ EOF
     fi
     return 0
 }
+
+add-zsh-hook zshaddhistory _histdb_addhistory
 
 histdb-top () {
     _histdb_init
