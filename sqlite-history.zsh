@@ -306,10 +306,14 @@ histdb () {
     fi
 
     local sep=$'\x1f'
+    local orderdir='asc'
     local debug=0
     local opt=""
     for opt ($opts); do
         case $opt in
+            --desc)
+                orderdir='desc'
+                ;;
             --sep*)
                 sep=${opt#--sep}
                 ;;
@@ -396,7 +400,7 @@ from
 where ${where}
 group by history.command_id, history.place_id
 order by max_start desc
-${limit:+limit $limit}) order by max_start asc"
+${limit:+limit $limit}) order by max_start ${orderdir}"
 
     ## min max date?
     local count_query="select count(*) from (select ${cols}
@@ -406,7 +410,7 @@ from
   join places  on history.place_id = places.id
 where ${where}
 group by history.command_id, history.place_id
-order by max_start desc) order by max_start asc"
+order by max_start desc) order by max_start ${orderdir}"
 
     if [[ $debug = 1 ]]; then
         echo "$query"
