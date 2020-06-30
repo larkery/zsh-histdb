@@ -51,7 +51,7 @@ _histdb_start_sqlite_pipe () {
     mkfifo $PIPE
     sysopen -rw -o cloexec -u HISTDB_FD -- $PIPE
     command rm $PIPE
-    HISTDB_INODE=$(stat -c %i ${HISTDB_FILE})
+    HISTDB_INODE=$(zstat +inode ${HISTDB_FILE})
     
     sqlite3 -batch "${HISTDB_FILE}" <&$HISTDB_FD >/dev/null &|
     HISTDB_SQLITE_PID=$!
