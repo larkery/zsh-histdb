@@ -112,7 +112,7 @@ if [[ -z "${HISTDB_TABULATE_CMD[*]:-}" ]]; then
     HISTDB_TABULATE_CMD=(column -t -s $'\x1f')
 fi
 
-histdb-update-outcome () {
+_histdb_update_outcome () {
     local retval=$?
     local finished=$(date +%s)
 
@@ -165,6 +165,7 @@ EOF
 }
 
 add-zsh-hook zshaddhistory _histdb_addhistory
+add-zsh-hook precmd _histdb_update_outcome
 
 histdb-top () {
     _histdb_init
