@@ -28,13 +28,18 @@ _histdb_query () {
 }
 
 _histdb_stop_sqlite_pipe () {
-    exec {HISTDB_FD}>&-;  # https://stackoverflow.com/a/22794374/2639190
-
+    if [[ -n $HISTDB_FD ]]; then
+        if print -nu$HISTDB_FD; then
+            exec {HISTDB_FD}>&-;  # https://stackoverflow.com/a/22794374/2639190
+        fi
+    fi
     # Sometimes, it seems like closing the fd does not terminate the
     # sqlite batch process, so here is a horrible fallback.
-    ps -o args= --pid $HISTDB_SQLITE_PID | read -r args
-    if [[ $args == "sqlite3 -batch ${HISTDB_FILE}" ]]; then
-        kill -TERM $HISTDB_SQLITE_PID
+    if [[ -n $HISTDB_SQLITE_PID ]]; then
+        ps -o args= --pid $HISTDB_SQLITE_PID | read -r args
+        if [[ $args == "sqlite3 -batch ${HISTDB_FILE}" ]]; then
+            kill -TERM $HISTDB_SQLITE_PID
+        fi
     fi
 }
 
