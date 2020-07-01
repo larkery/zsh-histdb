@@ -242,23 +242,26 @@ histdb () {
                -exact \
                d h -help \
                s+::=sessions \
-               -from:- -until:- -limit:-
+               -from:- -until:- -limit:- \
+               -status:- -desc
 
     local usage="usage:$0 terms [--host] [--in] [--at] [-s n]+* [--from] [--until] [--limit] [--forget] [--sep x] [--detail]
-    --host    print the host column and show all hosts (otherwise current host)
-    --host x  find entries from host x
-    --in      find only entries run in the current dir or below
-    --in x    find only entries in directory x or below
-    --at      like --in, but excluding subdirectories
-    -s n      only show session n
-    -d        debug output query that will be run
-    --detail  show details
-    --forget  forget everything which matches in the history
-    --exact   don't match substrings
-    --sep x   print with separator x, and don't tabulate
-    --from x  only show commands after date x (sqlite date parser)
-    --until x only show commands before date x (sqlite date parser)
-    --limit n only show n rows. defaults to $LINES or 25"
+    --desc     reverse sort order of results
+    --host     print the host column and show all hosts (otherwise current host)
+    --host x   find entries from host x
+    --in       find only entries run in the current dir or below
+    --in x     find only entries in directory x or below
+    --at       like --in, but excluding subdirectories
+    -s n       only show session n
+    -d         debug output query that will be run
+    --detail   show details
+    --forget   forget everything which matches in the history
+    --exact    don't match substrings
+    --sep x    print with separator x, and don't tabulate
+    --from x   only show commands after date x (sqlite date parser)
+    --until x  only show commands before date x (sqlite date parser)
+    --limit n  only show n rows. defaults to $LINES or 25
+    --status x only show rows with exit status x. Can be 'error' to find all nonzero."
 
     local selcols="session as ses, dir"
     local cols="session, replace(places.dir, '$HOME', '~') as dir"
@@ -336,7 +339,18 @@ histdb () {
                         ;;
                 esac
                 where="${where} and datetime(start_time, 'unixepoch') >= $from"
-            ;;
+                ;;
+            --status*)
+                local xstatus=${opt#--status}
+                case $xstatus in
+                    <->)
+                        where="${where} and exit_status = $xstatus"
+                        ;;
+                        error)
+                        where="${where} and exit_status <> 0"
+                        ;;
+                esac
+                ;;
             --until*)
                 local until=${opt#--until}
                 case $until in
@@ -397,6 +411,11 @@ $seps') as argv, max(start_time) as max_start"
 
     selcols="${timecol}, ${selcols}, argv as cmd"
 
+    local r_order="asc"
+    if [[ $orderdir == "asc" ]]; then
+        r_order="desc"
+    fi
+    
     local query="select ${selcols} from (select ${cols}
 from
   commands 
@@ -404,7 +423,7 @@ from
   join places on history.place_id = places.id
 where ${where}
 group by history.command_id, history.place_id
-order by max_start desc
+order by max_start ${r_order}
 ${limit:+limit $limit}) order by max_start ${orderdir}"
 
     ## min max date?
