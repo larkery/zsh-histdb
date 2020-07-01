@@ -34,8 +34,6 @@ It is also possible to merge multiple history databases together without conflic
 You will need ~sqlite3~ and the usual coreutils commands installed on your ~PATH~.
 To load and activate history recording you need to source ~sqlite-history.zsh~ from your shell in your zsh startup files.
 
-If you want the history to contain correct timing information, you will also need to run ~histdb-update-outcome~ in your ~precmd~ hook
-
 Example for installing in ~$HOME/.oh-my-zsh/custom/plugins/zsh-histdb~ (note that ~oh-my-zsh~ is not required):
 
 #+BEGIN_SRC zsh
@@ -48,7 +46,6 @@ Add this to your ~$HOME/.zshrc~:
 #+BEGIN_SRC zsh
 source $HOME/.oh-my-zsh/custom/plugins/zsh-histdb/sqlite-history.zsh
 autoload -Uz add-zsh-hook
-add-zsh-hook precmd histdb-update-outcome
 #+END_SRC
 
 in your zsh startup files.
