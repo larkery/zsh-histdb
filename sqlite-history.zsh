@@ -37,7 +37,7 @@ _histdb_stop_sqlite_pipe () {
     # Sometimes, it seems like closing the fd does not terminate the
     # sqlite batch process, so here is a horrible fallback.
     if [[ -n $HISTDB_SQLITE_PID ]]; then
-        ps -o args= --pid $HISTDB_SQLITE_PID | read -r args
+        ps -o args= -p $HISTDB_SQLITE_PID | read -r args
         if [[ $args == "sqlite3 -batch ${HISTDB_FILE}" ]]; then
             kill -TERM $HISTDB_SQLITE_PID
         fi
