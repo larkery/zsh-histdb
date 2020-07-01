@@ -1,6 +1,7 @@
 which sqlite3 >/dev/null 2>&1 || return;
 
 zmodload zsh/system # for sysopen
+zmodload -F zsh/stat b:zstat # just zstat
 autoload -U add-zsh-hook
 
 typeset -g HISTDB_QUERY=""
