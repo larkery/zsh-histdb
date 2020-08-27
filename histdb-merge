@@ -50,6 +50,6 @@ LEFT JOIN o.commands CO ON HO.command_id = CO.id
 LEFT JOIN commands C ON C.argv = CO.argv
 LEFT JOIN places P ON (P.host = PO.host
 AND P.dir = PO.dir)
-WHERE HO.id > (SELECT MAX(rowid) FROM a.history)
+WHERE HO.id > (SELECT MAX(id) FROM a.history)
 ;
 EOF
