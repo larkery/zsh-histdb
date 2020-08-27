@@ -215,7 +215,10 @@ histdb-sync () {
             git add .gitattributes
             git add "$(basename ${HISTDB_FILE})"
         fi
+        # Stop in case of a merge, starting again afterwards
+        _histdb_stop_sqlite_pipe
         git commit -am "history" && git pull --no-edit && git push
+        _histdb_start_sqlite_pipe
         popd
     fi
 
