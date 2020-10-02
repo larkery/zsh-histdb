@@ -69,7 +69,7 @@ _histdb_init () {
     if [[ -n "${HISTDB_SESSION}" ]]; then
         return
     fi
-    
+
     if ! [[ -e "${HISTDB_FILE}" ]]; then
         local hist_dir="$(dirname ${HISTDB_FILE})"
         if ! [[ -d "$hist_dir" ]]; then
@@ -122,10 +122,10 @@ _histdb_update_outcome () {
 
     _histdb_init
     _histdb_query_batch <<EOF &|
-update history set 
-      exit_status = ${retval}, 
+update history set
+      exit_status = ${retval},
       duration = ${finished} - start_time
-where id = (select max(id) from history) and 
+where id = (select max(id) from history) and
       session = ${HISTDB_SESSION} and
       exit_status is NULL;
 EOF
@@ -204,7 +204,7 @@ histdb-sync () {
     # this ought to apply to other readers?
     echo "truncating WAL"
     echo 'pragma wal_checkpoint(truncate);' | _histdb_query_batch
-    
+
     local hist_dir="$(dirname ${HISTDB_FILE})"
     if [[ -d "$hist_dir" ]]; then
         pushd "$hist_dir"
@@ -413,10 +413,10 @@ $seps') as argv, max(start_time) as max_start"
     if [[ $orderdir == "asc" ]]; then
         r_order="desc"
     fi
-    
+
     local query="select ${selcols} from (select ${cols}
 from
-  commands 
+  commands
   join history on history.command_id = commands.id
   join places on history.place_id = places.id
 where ${where}
