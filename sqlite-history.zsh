@@ -90,7 +90,7 @@ EOF
     fi
     if [[ -z "${HISTDB_SESSION}" ]]; then
         $(dirname ${HISTDB_INSTALLED_IN})/histdb-migrate "${HISTDB_FILE}"
-        HISTDB_HOST="'$(sql_escape ${HOST})'"
+        HISTDB_HOST=${HISTDB_HOST:-"'$(sql_escape ${HOST})'"}
         HISTDB_SESSION=$(_histdb_query "select 1+max(session) from history inner join places on places.id=history.place_id where places.host = ${HISTDB_HOST}")
         HISTDB_SESSION="${HISTDB_SESSION:-0}"
         readonly HISTDB_SESSION
