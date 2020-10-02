@@ -49,7 +49,9 @@ _histdb_start_sqlite_pipe () {
     local PIPE=$(mktemp -u)
     setopt local_options no_notify no_monitor
     mkfifo $PIPE
-    sqlite3 -batch "${HISTDB_FILE}" < $PIPE >/dev/null &|
+    pushd -q "${HISTDB_FILE:h}"
+    sqlite3 -batch "${HISTDB_FILE:t}" < $PIPE >/dev/null &|
+    popd -q
     sysopen -w -o cloexec -u HISTDB_FD -- $PIPE
     command rm $PIPE
     HISTDB_INODE=$(zstat +inode ${HISTDB_FILE})
