@@ -1,6 +1,8 @@
 which sqlite3 >/dev/null 2>&1 || return;
 
 zmodload zsh/system # for sysopen
+which sysopen &>/dev/null || return; # guard against zsh older than 5.0.8.
+
 zmodload -F zsh/stat b:zstat # just zstat
 autoload -U add-zsh-hook
 
