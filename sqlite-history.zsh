@@ -237,6 +237,7 @@ histdb () {
                -in+::=indirs \
                -at+::=atdirs \
                -forget \
+               -yes \
                -detail \
                -sep:- \
                -exact \
@@ -245,7 +246,7 @@ histdb () {
                -from:- -until:- -limit:- \
                -status:- -desc
 
-    local usage="usage:$0 terms [--host] [--in] [--at] [-s n]+* [--from] [--until] [--limit] [--forget] [--sep x] [--detail]
+    local usage="usage:$0 terms [--host] [--in] [--at] [-s n]+* [--from] [--until] [--limit] [--forget] [--yes] [--sep x] [--detail]
     --desc     reverse sort order of results
     --host     print the host column and show all hosts (otherwise current host)
     --host x   find entries from host x
@@ -256,6 +257,7 @@ histdb () {
     -d         debug output query that will be run
     --detail   show details
     --forget   forget everything which matches in the history
+    --yes      don't ask for confirmation when forgetting
     --exact    don't match substrings
     --sep x    print with separator x, and don't tabulate
     --from x   only show commands after date x (sqlite date parser)
@@ -273,6 +275,7 @@ histdb () {
     fi
 
     local forget="0"
+    local forget_accept=0
     local exact=0
 
     if (( ${#hosts} )); then
@@ -380,6 +383,9 @@ histdb () {
             --forget)
                 forget=1
                 ;;
+            --yes)
+                forget_accept=1
+                ;;
             --exact)
                 exact=1
                 ;;
@@ -462,7 +468,11 @@ order by max_start desc) order by max_start ${orderdir}"
     fi
 
     if [[ $forget -gt 0 ]]; then
-        read -q "REPLY?Forget all these results? [y/n] "
+        if [[ $forget_accept -gt 0 ]]; then
+          REPLY=y
+        else
+          read -q "REPLY?Forget all these results? [y/n] "
+        fi
         if [[ $REPLY =~ "[yY]" ]]; then
             _histdb_query "delete from history where
 history.id in (
