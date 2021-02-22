@@ -1,6 +1,8 @@
 which sqlite3 >/dev/null 2>&1 || return;
 
 zmodload zsh/system # for sysopen
+which sysopen &>/dev/null || return; # guard against zsh older than 5.0.8.
+
 zmodload -F zsh/stat b:zstat # just zstat
 autoload -U add-zsh-hook
 
@@ -90,7 +92,7 @@ EOF
     fi
     if [[ -z "${HISTDB_SESSION}" ]]; then
         $(dirname ${HISTDB_INSTALLED_IN})/histdb-migrate "${HISTDB_FILE}"
-        HISTDB_HOST="'$(sql_escape ${HOST})'"
+        HISTDB_HOST=${HISTDB_HOST:-"'$(sql_escape ${HOST})'"}
         HISTDB_SESSION=$(_histdb_query "select 1+max(session) from history inner join places on places.id=history.place_id where places.host = ${HISTDB_HOST}")
         HISTDB_SESSION="${HISTDB_SESSION:-0}"
         readonly HISTDB_SESSION
@@ -207,19 +209,22 @@ histdb-sync () {
     
     local hist_dir="$(dirname ${HISTDB_FILE})"
     if [[ -d "$hist_dir" ]]; then
-        pushd "$hist_dir"
-        if [[ $(git rev-parse --is-inside-work-tree) != "true" ]] || [[ "$(git rev-parse --show-toplevel)" != "$(pwd -P)" ]]; then
-            git init
-            git config merge.histdb.driver "$(dirname ${HISTDB_INSTALLED_IN})/histdb-merge %O %A %B"
-            echo "$(basename ${HISTDB_FILE}) merge=histdb" | tee -a .gitattributes &>-
-            git add .gitattributes
-            git add "$(basename ${HISTDB_FILE})"
-        fi
-        # Stop in case of a merge, starting again afterwards
-        _histdb_stop_sqlite_pipe
-        git commit -am "history" && git pull --no-edit && git push
-        _histdb_start_sqlite_pipe
-        popd
+        () {
+            setopt local_options no_pushd_ignore_dups
+
+            pushd -q "$hist_dir"
+            if [[ $(git rev-parse --is-inside-work-tree) != "true" ]] || [[ "$(git rev-parse --show-toplevel)" != "$(pwd -P)" ]]; then
+                git init
+                git config merge.histdb.driver "$(dirname ${HISTDB_INSTALLED_IN})/histdb-merge %O %A %B"
+                echo "$(basename ${HISTDB_FILE}) merge=histdb" | tee -a .gitattributes &>/dev/null
+                git add .gitattributes
+                git add "$(basename ${HISTDB_FILE})"
+            fi
+            _histdb_stop_sqlite_pipe # Stop in case of a merge, starting again afterwards
+            git commit -am "history" && git pull --no-edit && git push
+            _histdb_start_sqlite_pipe
+            popd -q
+        }
     fi
 
     echo 'pragma wal_checkpoint(passive);' | _histdb_query_batch
@@ -455,7 +460,7 @@ order by max_start desc) order by max_start ${orderdir}"
             }
         fi
         if [[ $sep == $'\x1f' ]]; then
-            _histdb_query -header -separator $sep "$query" | iconv -f utf-8 -t utf-8 -c | "${HISTDB_TABULATE_CMD[@]}" | buffer
+            _histdb_query -header -separator $sep "$query" | iconv -f utf-8 -t utf-8 -c | buffer | "${HISTDB_TABULATE_CMD[@]}"
         else
             _histdb_query -header -separator $sep "$query" | buffer
         fi
