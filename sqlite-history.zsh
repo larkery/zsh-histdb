@@ -209,16 +209,20 @@ histdb-sync () {
     
     local hist_dir="$(dirname ${HISTDB_FILE})"
     if [[ -d "$hist_dir" ]]; then
-        pushd "$hist_dir"
-        if [[ $(git rev-parse --is-inside-work-tree) != "true" ]] || [[ "$(git rev-parse --show-toplevel)" != "$(pwd -P)" ]]; then
-            git init
-            git config merge.histdb.driver "$(dirname ${HISTDB_INSTALLED_IN})/histdb-merge %O %A %B"
-            echo "$(basename ${HISTDB_FILE}) merge=histdb" | tee -a .gitattributes &>-
-            git add .gitattributes
-            git add "$(basename ${HISTDB_FILE})"
-        fi
-        git commit -am "history" && git pull --no-edit && git push
-        popd
+        () {
+            setopt local_options no_pushd_ignore_dups
+
+            pushd -q "$hist_dir"
+            if [[ $(git rev-parse --is-inside-work-tree) != "true" ]] || [[ "$(git rev-parse --show-toplevel)" != "$(pwd -P)" ]]; then
+                git init
+                git config merge.histdb.driver "$(dirname ${HISTDB_INSTALLED_IN})/histdb-merge %O %A %B"
+                echo "$(basename ${HISTDB_FILE}) merge=histdb" | tee -a .gitattributes &>-
+                git add .gitattributes
+                git add "$(basename ${HISTDB_FILE})"
+            fi
+            git commit -am "history" && git pull --no-edit && git push
+            popd -q
+        }
     fi
 
     echo 'pragma wal_checkpoint(passive);' | _histdb_query_batch
