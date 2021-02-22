@@ -454,7 +454,7 @@ order by max_start desc) order by max_start ${orderdir}"
             }
         fi
         if [[ $sep == $'\x1f' ]]; then
-            _histdb_query -header -separator $sep "$query" | iconv -f utf-8 -t utf-8 -c | "${HISTDB_TABULATE_CMD[@]}" | buffer
+            _histdb_query -header -separator $sep "$query" | iconv -f utf-8 -t utf-8 -c | buffer | "${HISTDB_TABULATE_CMD[@]}"
         else
             _histdb_query -header -separator $sep "$query" | buffer
         fi
