@@ -26,7 +26,7 @@ sql_escape () {
 
 _histdb_query () {
     sqlite3 -cmd ".timeout 1000" "${HISTDB_FILE}" "$@"
-    [[ "$?" -ne 0 ]] && echo "error in $@"
+    [[ "$?" -ne 0 ]] && print -u2 "error in $@"
 }
 
 _histdb_stop_sqlite_pipe () {
@@ -191,12 +191,16 @@ histdb-top () {
             join='commands.id = history.command_id'
             table=commands
             ;;;
+        *)
+            print -u2 'error: argument must be one of "cmd" or "dir"'
+            return 1
+            ;;;
     esac
     _histdb_query -separator "$sep" \
             -header \
             "select count(*) as count, places.host, replace($field, '
 ', '
-$sep$sep') as ${1:-cmd} from history left join commands on history.command_id=commands.id left join places on history.place_id=places.id group by places.host, $field order by count(*)" | \
+$sep$sep') as ${1} from history left join commands on history.command_id=commands.id left join places on history.place_id=places.id group by places.host, $field order by count(*)" | \
         "${HISTDB_TABULATE_CMD[@]}"
 }
 
