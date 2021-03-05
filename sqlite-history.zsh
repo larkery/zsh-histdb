@@ -1,5 +1,6 @@
 which sqlite3 >/dev/null 2>&1 || return;
 
+zmodload zsh/datetime # for EPOCHSECONDS
 zmodload zsh/system # for sysopen
 which sysopen &>/dev/null || return; # guard against zsh older than 5.0.8.
 
@@ -21,7 +22,7 @@ typeset -g HISTDB_INSTALLED_IN="${(%):-%N}"
 
 
 sql_escape () {
-    sed -e "s/'/''/g" <<< "$@" | tr -d '\000'
+    print -r ${${@//\'/\'\'}//$'\x00'}
 }
 
 _histdb_query () {
@@ -48,17 +49,18 @@ _histdb_stop_sqlite_pipe () {
 add-zsh-hook zshexit _histdb_stop_sqlite_pipe
 
 _histdb_start_sqlite_pipe () {
-    local PIPE=$(mktemp -u)
+    local PIPE==(<<<'')
     setopt local_options no_notify no_monitor
     mkfifo $PIPE
     sqlite3 -batch "${HISTDB_FILE}" < $PIPE >/dev/null &|
     sysopen -w -o cloexec -u HISTDB_FD -- $PIPE
     command rm $PIPE
-    HISTDB_INODE=$(zstat +inode ${HISTDB_FILE})
+    zstat -A HISTDB_INODE +inode ${HISTDB_FILE}
 }
 
 _histdb_query_batch () {
-    local CUR_INODE=$(zstat +inode ${HISTDB_FILE})
+    local CUR_INODE
+    zstat -A CUR_INODE +inode ${HISTDB_FILE}
     if [[ $CUR_INODE != $HISTDB_INODE ]]; then
         _histdb_stop_sqlite_pipe
         _histdb_start_sqlite_pipe
@@ -73,7 +75,7 @@ _histdb_init () {
     fi
     
     if ! [[ -e "${HISTDB_FILE}" ]]; then
-        local hist_dir="$(dirname ${HISTDB_FILE})"
+        local hist_dir="${HISTDB_FILE:h}"
         if ! [[ -d "$hist_dir" ]]; then
             mkdir -p -- "$hist_dir"
         fi
@@ -91,7 +93,7 @@ PRAGMA user_version = 2;
 EOF
     fi
     if [[ -z "${HISTDB_SESSION}" ]]; then
-        $(dirname ${HISTDB_INSTALLED_IN})/histdb-migrate "${HISTDB_FILE}"
+        ${HISTDB_INSTALLED_IN:h}/histdb-migrate "${HISTDB_FILE}"
         HISTDB_HOST=${HISTDB_HOST:-"'$(sql_escape ${HOST})'"}
         HISTDB_SESSION=$(_histdb_query "select 1+max(session) from history inner join places on places.id=history.place_id where places.host = ${HISTDB_HOST}")
         HISTDB_SESSION="${HISTDB_SESSION:-0}"
@@ -119,7 +121,7 @@ fi
 
 _histdb_update_outcome () {
     local retval=$?
-    local finished=$(date +%s)
+    local finished=$EPOCHSECONDS
     [[ -z "${HISTDB_SESSION}" ]] && return
 
     _histdb_init
@@ -144,7 +146,7 @@ _histdb_addhistory () {
 
     local cmd="'$(sql_escape $cmd)'"
     local pwd="'$(sql_escape ${PWD})'"
-    local started=$(date +%s)
+    local started=$EPOCHSECONDS
     _histdb_init
 
     if [[ "$cmd" != "''" ]]; then
@@ -207,18 +209,18 @@ histdb-sync () {
     echo "truncating WAL"
     echo 'pragma wal_checkpoint(truncate);' | _histdb_query_batch
     
-    local hist_dir="$(dirname ${HISTDB_FILE})"
+    local hist_dir="${HISTDB_FILE:h}"
     if [[ -d "$hist_dir" ]]; then
         () {
             setopt local_options no_pushd_ignore_dups
 
             pushd -q "$hist_dir"
-            if [[ $(git rev-parse --is-inside-work-tree) != "true" ]] || [[ "$(git rev-parse --show-toplevel)" != "$(pwd -P)" ]]; then
+            if [[ $(git rev-parse --is-inside-work-tree) != "true" ]] || [[ "$(git rev-parse --show-toplevel)" != "${PWD:A}" ]]; then
                 git init
-                git config merge.histdb.driver "$(dirname ${HISTDB_INSTALLED_IN})/histdb-merge %O %A %B"
-                echo "$(basename ${HISTDB_FILE}) merge=histdb" | tee -a .gitattributes &>/dev/null
+                git config merge.histdb.driver "${HISTDB_INSTALLED_IN:h}/histdb-merge %O %A %B"
+                echo "${HISTDB_FILE:t} merge=histdb" >>! .gitattributes
                 git add .gitattributes
-                git add "$(basename ${HISTDB_FILE})"
+                git add "${HISTDB_FILE:t}"
             fi
             _histdb_stop_sqlite_pipe # Stop in case of a merge, starting again afterwards
             git commit -am "history" && git pull --no-edit && git push
