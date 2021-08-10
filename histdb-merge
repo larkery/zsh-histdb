@@ -9,8 +9,8 @@ local theirs=${1:?three databases required}
 $HERE/histdb-migrate $ancestor # this is always reasonable to do
 $HERE/histdb-migrate $ours # this also seems fine
 
-V_OURS=$(sqlite3 $ours 'PRAGMA user_version')
-V_THEIRS=$(sqlite3 $theirs 'PRAGMA user_version')
+V_OURS=$(sqlite3 -batch -noheader $ours 'PRAGMA user_version')
+V_THEIRS=$(sqlite3 -batch -noheader $theirs 'PRAGMA user_version')
 
 if [[ ${V_OURS} -lt ${V_THEIRS} ]] ; then
     echo "Attempting to merge with a database from a future version (${V_THEIRS})."
@@ -31,7 +31,7 @@ fi
 # for reasons I cannot use the encryption filter here.
 # most annoying.
 
-sqlite3 "${ours}" <<EOF
+sqlite3 -batch -noheader "${ours}" <<EOF
 ATTACH DATABASE '${theirs}' AS o;
 ATTACH DATABASE '${ancestor}' AS a;
 
