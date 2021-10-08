@@ -30,26 +30,33 @@ fi
 
 # for reasons I cannot use the encryption filter here.
 # most annoying.
+#
+echo "Ancestor has $(sqlite3 ${ancestor} 'select count(*) from history') entries"
+echo "We have $(sqlite3 ${ours} 'select count(*) from history') entries"
+echo "Theirs have $(sqlite3 ${theirs} 'select count(*) from history') entries"
 
-sqlite3 -batch -noheader "${ours}" <<EOF
-ATTACH DATABASE '${theirs}' AS o;
+sqlite3 -batch -noheader "${theirs}" <<EOF
+ATTACH DATABASE '${ours}' AS n;
 ATTACH DATABASE '${ancestor}' AS a;
 
 -- copy missing commands and places
-INSERT INTO commands (argv) SELECT argv FROM o.commands;
-INSERT INTO places (host, dir) SELECT host, dir FROM o.places;
+INSERT INTO commands (argv) SELECT argv FROM n.commands as NC where NC.id > (SELECT max(id) FROM a.commands);
+INSERT INTO places (host, dir) SELECT host, dir FROM n.places as NP where NP.id > (SELECT max(id) FROM a.places);
 
 -- insert missing history, rewriting IDs
 -- could uniquify sessions by host in this way too
 
 INSERT INTO history (session, command_id, place_id, exit_status, start_time, duration)
-SELECT HO.session, C.id, P.id, HO.exit_status, HO.start_time, HO.duration
-FROM o.history HO
-LEFT JOIN o.places PO ON HO.place_id = PO.id
-LEFT JOIN o.commands CO ON HO.command_id = CO.id
+SELECT NO.session, C.id, P.id, NO.exit_status, NO.start_time, NO.duration
+FROM n.history NO
+LEFT JOIN n.places PO ON NO.place_id = PO.id
+LEFT JOIN n.commands CO ON NO.command_id = CO.id
 LEFT JOIN commands C ON C.argv = CO.argv
 LEFT JOIN places P ON (P.host = PO.host
 AND P.dir = PO.dir)
-WHERE HO.id > (SELECT MAX(id) FROM a.history)
+WHERE NO.id > (SELECT MAX(id) FROM a.history)
 ;
+VACUUM;
 EOF
+cp ${theirs} ${ours}
+echo "Now we have $(sqlite3 ${ours} 'select count(*) from history') entries"
