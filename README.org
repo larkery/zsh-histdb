@@ -1,6 +1,7 @@
 #+TITLE:ZSH History Database
 
 * News
+- 13/10/21 :: Thanks to Aloxaf some subshell invocations have been removed which should make things quicker. Thanks to m42e (again) ~histdb-sync~ uses the remote database IDs as the canonical ones which should make syncing a bit less thrashy. Thanks to Chad Transtrum we use ~builtin which~ rather than ~which~, for systems which have an unusual which (?!), and an improvement to examples below in the README. Thanks to Klaus Ethgen the invocation of ~sqlite3~ is now unaffected by some potential confusions in your sqlite rc files.
 - 30/06/20 :: Thanks to rolandwalker, add-zsh-hook is used so histdb is a better citizen.
   Thanks to GreenArchon and phiresky the sqlite helper process is terminated on exit better, and the WAL is truncated before doing histdb sync. This should make things behave a bit better. Thanks to gabreal (and others, I think), some things have been changed to ~declare -ga~ which helps when using antigen or somesuch? Thanks to sheperdjerred and fuero there is now a file which might make antigen and oh-my-zsh work.
 
@@ -118,12 +119,15 @@ This query will find the most frequently issued command that is issued in the cu
 
 #+BEGIN_SRC sh
   _zsh_autosuggest_strategy_histdb_top() {
-      local query="select commands.argv from
-  history left join commands on history.command_id = commands.rowid
-  left join places on history.place_id = places.rowid
-  where commands.argv LIKE '$(sql_escape $1)%'
-  group by commands.argv
-  order by places.dir != '$(sql_escape $PWD)', count(*) desc limit 1"
+      local query="
+          select commands.argv from history
+          left join commands on history.command_id = commands.rowid
+          left join places on history.place_id = places.rowid
+          where commands.argv LIKE '$(sql_escape $1)%'
+          group by commands.argv, places.dir
+          order by places.dir != '$(sql_escape $PWD)', count(*) desc
+          limit 1
+      "
       suggestion=$(_histdb_query "$query")
   }
 
