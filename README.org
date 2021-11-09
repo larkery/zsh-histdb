@@ -1,4 +1,4 @@
-#+TITLE:ZSH History Database
+#+TITLE:ZSH History Database -- scalable command history with git versioning and sync across hosts
 
 * News
 - 13/10/21 :: Thanks to Aloxaf some subshell invocations have been removed which should make things quicker. Thanks to m42e (again) ~histdb-sync~ uses the remote database IDs as the canonical ones which should make syncing a bit less thrashy. Thanks to Chad Transtrum we use ~builtin which~ rather than ~which~, for systems which have an unusual which (?!), and an improvement to examples below in the README. Thanks to Klaus Ethgen the invocation of ~sqlite3~ is now unaffected by some potential confusions in your sqlite rc files.
