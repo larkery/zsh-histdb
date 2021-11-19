@@ -63,6 +63,10 @@ HISTDB_TABULATE_CMD=(sed -e $'s/\x1f/\t/g')
 
 [[https://github.com/drewis/go-histdbimport][go-histdbimport]] and [[https://github.com/phiresky/ts-histdbimport][ts-histdbimport]] are useful tools for doing this! Note that the imported history will not include metadata such as the working directory or the exit status, since that is not stored in the normal history file format, so queries using ~--in DIR~, etc. will not work as expected.
 
+* Configuration
+histdb can be configured exactly as zsh:
+- [[https://zsh.sourceforge.io/Doc/Release/Parameters.html#index-HISTORY_005fIGNORE][~HISTORY_IGNORE~]]: If set, is treated as a single glob pattern to match the commands that should be ignored. Ignored commands are not saved to the database. Example: ~(ls|cd|top|htop)~.
+
 * Querying history
 You can query the history with the ~histdb~ command.
 With no arguments it will print one screenful of history on the current host.
@@ -99,7 +103,7 @@ To see a specific host, add ~--host hostname~.
 To see all of a specific session say e.g. ~-s 522 --limit 10000~.
 ** Integration with ~zsh-autosuggestions~
 
-If you use [[https://github.com/zsh-users/zsh-autosuggestions][zsh-autosuggestions]] you can configure it to search the history database instead of the ZSH history file thus:
+If you use [[https://github.com/zsh-users/zsh-autosuggestions][zsh-autosuggestions]] you can configure it to search the history database instead of the zsh history file thus:
 
 #+BEGIN_SRC sh
   _zsh_autosuggest_strategy_histdb_top_here() {
