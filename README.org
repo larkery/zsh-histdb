@@ -65,7 +65,7 @@ HISTDB_TABULATE_CMD=(sed -e $'s/\x1f/\t/g')
 
 * Configuration
 histdb can be configured exactly as zsh:
-- [[https://zsh.sourceforge.io/Doc/Release/Parameters.html#index-HISTORY_005fIGNORE][~HISTORY_IGNORE~]]: If set, is treated as a single glob pattern to match the commands that should be ignored. Ignored commands are not saved to the database. Example: ~(ls|cd|top|htop)~.
+- [[https://zsh.sourceforge.io/Doc/Release/Parameters.html#index-HISTORY_005fIGNORE][HISTORY_IGNORE]]: If set, is treated as a single glob pattern to match the commands that should be ignored. Ignored commands are not saved to the database. Example: ~(ls|cd|top|htop)~.
 
 * Querying history
 You can query the history with the ~histdb~ command.
