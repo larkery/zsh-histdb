@@ -14,7 +14,7 @@ else
     typeset -g HISTDB_FILE
 fi
 
-typeset -g HISTDB_INODE=""
+typeset -g HISTDB_INODE=()
 typeset -g HISTDB_SESSION=""
 typeset -g HISTDB_HOST=""
 typeset -g HISTDB_INSTALLED_IN="${(%):-%N}"
