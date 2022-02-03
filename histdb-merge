@@ -1,12 +1,26 @@
 #!/usr/bin/env zsh
 
+function cleanup () {
+    if [[ -n "${TMP_BATCH_FILEPATH}" ]]; then
+        rm -f "${TMP_BATCH_FILEPATH}"
+    fi
+    exit
+}
+trap cleanup EXIT INT TERM
+
+TMP_BATCH_FILEPATH="$(mktemp)" || exit
+
 typeset -g HERE=$(dirname "${(%):-%N}")
 
 local ancestor=${1:?three databases required}; shift
 local ours=${1:?three databases required}; shift
 local theirs=${1:?three databases required}
 
-$HERE/histdb-migrate $ancestor # this is always reasonable to do
+local unrelated_histories="$( [[ -s "${ancestor}" ]] && echo 0 || echo 1 )"
+
+if (( ! unrelated_histories )); then
+    $HERE/histdb-migrate $ancestor # this is always reasonable to do
+fi
 $HERE/histdb-migrate $ours # this also seems fine
 
 V_OURS=$(sqlite3 -batch -noheader $ours 'PRAGMA user_version')
@@ -20,7 +34,7 @@ elif [[ ${V_THEIRS} -lt ${V_OURS} ]]; then
     echo "Merging different database versions: ours ${V_OURS}, theirs ${V_THEIRS}."
     echo "To continue merging, their database needs migrating to newer version."
     echo "If you do this, and push the changes, then the remote version of histdb will need upgrading too."
-    
+
     read -q "REPLY?Try migrating their database? [y/n] "
     if [[ $REPLY != "y" ]]; then
         echo "Cancelled."
@@ -31,17 +45,48 @@ fi
 # for reasons I cannot use the encryption filter here.
 # most annoying.
 #
-echo "Ancestor has $(sqlite3 ${ancestor} 'select count(*) from history') entries"
+if (( unrelated_histories )); then
+    echo "There is no common ancestor (unrelated histories)"
+else
+    echo "Ancestor has $(sqlite3 ${ancestor} 'select count(*) from history') entries"
+fi
 echo "We have $(sqlite3 ${ours} 'select count(*) from history') entries"
 echo "Theirs have $(sqlite3 ${theirs} 'select count(*) from history') entries"
 
-sqlite3 -batch -noheader "${theirs}" <<EOF
+cat >"${TMP_BATCH_FILEPATH}" <<EOF
 ATTACH DATABASE '${ours}' AS n;
+EOF
+if (( ! unrelated_histories )); then
+    cat >>"${TMP_BATCH_FILEPATH}" <<EOF
 ATTACH DATABASE '${ancestor}' AS a;
-
+EOF
+fi
+cat >>"${TMP_BATCH_FILEPATH}" <<EOF
 -- copy missing commands and places
-INSERT INTO commands (argv) SELECT argv FROM n.commands as NC where NC.id > (SELECT max(id) FROM a.commands);
-INSERT INTO places (host, dir) SELECT host, dir FROM n.places as NP where NP.id > (SELECT max(id) FROM a.places);
+
+INSERT INTO commands (argv)
+SELECT argv
+FROM n.commands as NC
+EOF
+if (( ! unrelated_histories )); then
+    cat >>"${TMP_BATCH_FILEPATH}" <<EOF
+WHERE NC.id > (SELECT max(id) FROM a.commands)
+EOF
+fi
+cat >>"${TMP_BATCH_FILEPATH}" <<EOF
+;
+
+INSERT INTO places (host, dir)
+SELECT host, dir
+FROM n.places as NP
+EOF
+if (( ! unrelated_histories )); then
+    cat >>"${TMP_BATCH_FILEPATH}" <<EOF
+WHERE NP.id > (SELECT max(id) FROM a.places)
+EOF
+fi
+cat >>"${TMP_BATCH_FILEPATH}" <<EOF
+;
 
 -- insert missing history, rewriting IDs
 -- could uniquify sessions by host in this way too
@@ -54,9 +99,17 @@ LEFT JOIN n.commands CO ON NO.command_id = CO.id
 LEFT JOIN commands C ON C.argv = CO.argv
 LEFT JOIN places P ON (P.host = PO.host
 AND P.dir = PO.dir)
+EOF
+if (( ! unrelated_histories )); then
+    cat >>"${TMP_BATCH_FILEPATH}" <<EOF
 WHERE NO.id > (SELECT MAX(id) FROM a.history)
+EOF
+fi
+cat >>"${TMP_BATCH_FILEPATH}" <<EOF
 ;
 VACUUM;
 EOF
+sqlite3 -batch -noheader "${theirs}" < "${TMP_BATCH_FILEPATH}"
+
 cp ${theirs} ${ours}
 echo "Now we have $(sqlite3 ${ours} 'select count(*) from history') entries"
