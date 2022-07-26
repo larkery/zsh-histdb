@@ -56,7 +56,7 @@ in your zsh startup files.
 
 Install ~zsh-histdb~ with [[https://fig.io][Fig]] in just one click.
 
-[[https://fig.io/badges/install-with-fig.svg][https://fig.io/plugins/other/zsh-histdb]]
+[[https://fig.io/plugins/other/zsh-histdb][https://fig.io/badges/install-with-fig.svg]]
 
 ** Note for OS X users
 
