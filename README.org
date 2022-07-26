@@ -51,6 +51,13 @@ autoload -Uz add-zsh-hook
 
 in your zsh startup files.
 
+** Fig
+
+
+Install ~zsh-histdb~ with [[https://fig.io][Fig]] in just one click.
+
+[[https://fig.io/plugins/other/zsh-histdb][https://fig.io/badges/install-with-fig.svg]]
+
 ** Note for OS X users
 
 Add the following line before you source `sqlite-history.zsh`. See https://github.com/larkery/zsh-histdb/pull/31 for details.
