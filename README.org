@@ -53,11 +53,10 @@ in your zsh startup files.
 
 ** Fig
 
+
 Install ~zsh-histdb~ with [[https://fig.io][Fig]] in just one click.
 
-#+MACRO: imglnk @@html:<a href="$1"><img src="$2"></a>@@
-
-{{{imglnk(https://fig.io/plugins/other/zsh-histdb,https://fig.io/badges/install-with-fig.svg)}}}
+[[https://fig.io/badges/install-with-fig.svg][https://fig.io/plugins/other/zsh-histdb]]
 
 ** Note for OS X users
 
