@@ -138,6 +138,10 @@ EOF
 _histdb_addhistory () {
     local cmd="${1[0, -2]}"
 
+    if [[ -o histignorespace && "$cmd" =~ "^ " ]]; then
+        return 0
+    fi
+
     for boring in "${_BORING_COMMANDS[@]}"; do
         if [[ "$cmd" =~ $boring ]]; then
             return 0
