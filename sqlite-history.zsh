@@ -14,6 +14,7 @@ else
     typeset -g HISTDB_FILE
 fi
 
+typeset -g HISTDB_FD
 typeset -g HISTDB_INODE=()
 typeset -g HISTDB_SESSION=""
 typeset -g HISTDB_HOST=""
@@ -141,7 +142,10 @@ _histdb_addhistory () {
     if [[ -o histignorespace && "$cmd" =~ "^ " ]]; then
         return 0
     fi
-
+    if [[ ${cmd} == ${~HISTORY_IGNORE} ]]; then
+        return 0
+    fi
+    local boring
     for boring in "${_BORING_COMMANDS[@]}"; do
         if [[ "$cmd" =~ $boring ]]; then
             return 0
