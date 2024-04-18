@@ -15,7 +15,7 @@ else
 fi
 
 typeset -g HISTDB_FD
-typeset -g HISTDB_INODE=""
+typeset -g HISTDB_INODE=()
 typeset -g HISTDB_SESSION=""
 typeset -g HISTDB_HOST=""
 typeset -g HISTDB_INSTALLED_IN="${(%):-%N}"
@@ -23,7 +23,7 @@ typeset -g HISTDB_INSTALLED_IN="${(%):-%N}"
 
 
 sql_escape () {
-    print -r ${${@//\'/\'\'}//$'\x00'}
+    print -r -- ${${@//\'/\'\'}//$'\x00'}
 }
 
 _histdb_query () {
@@ -139,6 +139,9 @@ EOF
 _histdb_addhistory () {
     local cmd="${1[0, -2]}"
 
+    if [[ -o histignorespace && "$cmd" =~ "^ " ]]; then
+        return 0
+    fi
     if [[ ${cmd} == ${~HISTORY_IGNORE} ]]; then
         return 0
     fi
