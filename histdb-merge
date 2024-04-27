@@ -9,8 +9,8 @@ local theirs=${1:?three databases required}
 $HERE/histdb-migrate $ancestor # this is always reasonable to do
 $HERE/histdb-migrate $ours # this also seems fine
 
-V_OURS=$(sqlite3 -batch -noheader $ours 'PRAGMA user_version')
-V_THEIRS=$(sqlite3 -batch -noheader $theirs 'PRAGMA user_version')
+V_OURS=$(sqlite3 -batch -noheader -list $ours 'PRAGMA user_version')
+V_THEIRS=$(sqlite3 -batch -noheader -list $theirs 'PRAGMA user_version')
 
 if [[ ${V_OURS} -lt ${V_THEIRS} ]] ; then
     echo "Attempting to merge with a database from a future version (${V_THEIRS})."
@@ -35,7 +35,7 @@ echo "Ancestor has $(sqlite3 ${ancestor} 'select count(*) from history') entries
 echo "We have $(sqlite3 ${ours} 'select count(*) from history') entries"
 echo "Theirs have $(sqlite3 ${theirs} 'select count(*) from history') entries"
 
-sqlite3 -batch -noheader "${theirs}" <<EOF
+sqlite3 -batch -noheader -list "${theirs}" <<EOF
 ATTACH DATABASE '${ours}' AS n;
 ATTACH DATABASE '${ancestor}' AS a;
 
