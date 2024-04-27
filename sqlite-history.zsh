@@ -27,7 +27,7 @@ sql_escape () {
 }
 
 _histdb_query () {
-    sqlite3 -batch -noheader -cmd ".timeout 1000" "${HISTDB_FILE}" "$@"
+    sqlite3 -batch -noheader -list -cmd ".timeout 1000" "${HISTDB_FILE}" "$@"
     [[ "$?" -ne 0 ]] && echo "error in $@"
 }
 
@@ -53,7 +53,7 @@ _histdb_start_sqlite_pipe () {
     local PIPE==(<<<'')
     setopt local_options no_notify no_monitor
     mkfifo $PIPE
-    sqlite3 -batch -noheader "${HISTDB_FILE}" < $PIPE >/dev/null &|
+    sqlite3 -batch -noheader -list "${HISTDB_FILE}" < $PIPE >/dev/null &|
     sysopen -w -o cloexec -u HISTDB_FD -- $PIPE
     command rm $PIPE
     zstat -A HISTDB_INODE +inode ${HISTDB_FILE}
