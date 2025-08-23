@@ -19,6 +19,7 @@ typeset -g HISTDB_INODE=()
 typeset -g HISTDB_SESSION=""
 typeset -g HISTDB_HOST=""
 typeset -g HISTDB_INSTALLED_IN="${(%):-%N}"
+typeset -g HISTDB_SQLITE_PID
 
 
 
@@ -39,12 +40,15 @@ _histdb_stop_sqlite_pipe () {
     fi
     # Sometimes, it seems like closing the fd does not terminate the
     # sqlite batch process, so here is a horrible fallback.
-    # if [[ -n $HISTDB_SQLITE_PID ]]; then
-    #     ps -o args= -p $HISTDB_SQLITE_PID | read -r args
-    #     if [[ $args == "sqlite3 -batch ${HISTDB_FILE}" ]]; then
-    #         kill -TERM $HISTDB_SQLITE_PID
-    #     fi
-    # fi
+    if [[ -n $HISTDB_SQLITE_PID ]]; then
+        local comm cmd
+        comm=$(ps -o comm= -p $HISTDB_SQLITE_PID 2>/dev/null)
+        cmd=$(ps -o command= -p $HISTDB_SQLITE_PID 2>/dev/null)
+        if [[ $comm == "sqlite3" && $cmd == *"${HISTDB_FILE}"* ]]; then
+            kill -TERM $HISTDB_SQLITE_PID 2>/dev/null
+        fi
+        unset HISTDB_SQLITE_PID
+    fi
 }
 
 add-zsh-hook zshexit _histdb_stop_sqlite_pipe
@@ -53,7 +57,8 @@ _histdb_start_sqlite_pipe () {
     local PIPE==(<<<'')
     setopt local_options no_notify no_monitor
     mkfifo $PIPE
-    sqlite3 -batch -noheader "${HISTDB_FILE}" < $PIPE >/dev/null &|
+    # start sqlite detached in a backgrounded subshell and capture its PID via a pipe
+    HISTDB_SQLITE_PID=$({ ( nohup sqlite3 -batch -noheader "${HISTDB_FILE}" < $PIPE >/dev/null 2>/dev/null & echo $! ) & } | head -n1)
     sysopen -w -o cloexec -u HISTDB_FD -- $PIPE
     command rm $PIPE
     zstat -A HISTDB_INODE +inode ${HISTDB_FILE}
