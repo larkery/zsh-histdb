@@ -50,13 +50,16 @@ _histdb_stop_sqlite_pipe () {
 add-zsh-hook zshexit _histdb_stop_sqlite_pipe
 
 _histdb_start_sqlite_pipe () {
-    local PIPE==(<<<'')
+    local PIPE=$(mktemp -u "${TMPPREFIX:-/tmp/zsh}-histdb-XXXXXXXX")
     setopt local_options no_notify no_monitor
-    mkfifo $PIPE
-    sqlite3 -batch -noheader "${HISTDB_FILE}" < $PIPE >/dev/null &|
-    sysopen -w -o cloexec -u HISTDB_FD -- $PIPE
-    command rm $PIPE
-    zstat -A HISTDB_INODE +inode ${HISTDB_FILE}
+    {
+        mkfifo $PIPE
+        sqlite3 -batch -noheader "${HISTDB_FILE}" < $PIPE >/dev/null &|
+        sysopen -w -o cloexec -u HISTDB_FD -- $PIPE
+        zstat -A HISTDB_INODE +inode ${HISTDB_FILE}
+    } always {
+        command rm -f $PIPE
+    }
 }
 
 _histdb_query_batch () {
