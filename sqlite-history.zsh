@@ -181,7 +181,7 @@ EOF
 }
 
 add-zsh-hook zshaddhistory _histdb_addhistory
-add-zsh-hook precmd _histdb_update_outcome
+precmd_functions+=(histdb-update-outcome)
 
 histdb-top () {
     _histdb_init
