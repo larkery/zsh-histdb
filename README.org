@@ -1,6 +1,9 @@
 #+TITLE:ZSH History Database
 
 * News
+- 18/09/26 :: Thanks to https://github.com/m42e/zsh-histdb-fzf and claude I have mangled together an fzf thing.
+  See below for how to use.
+- 13/10/21 :: Thanks to Aloxaf some subshell invocations have been removed which should make things quicker. Thanks to m42e (again) ~histdb-sync~ uses the remote database IDs as the canonical ones which should make syncing a bit less thrashy. Thanks to Chad Transtrum we use ~builtin which~ rather than ~which~, for systems which have an unusual which (?!), and an improvement to examples below in the README. Thanks to Klaus Ethgen the invocation of ~sqlite3~ is now unaffected by some potential confusions in your sqlite rc files.
 - 30/06/20 :: Thanks to rolandwalker, add-zsh-hook is used so histdb is a better citizen.
   Thanks to GreenArchon and phiresky the sqlite helper process is terminated on exit better, and the WAL is truncated before doing histdb sync. This should make things behave a bit better. Thanks to gabreal (and others, I think), some things have been changed to ~declare -ga~ which helps when using antigen or somesuch? Thanks to sheperdjerred and fuero there is now a file which might make antigen and oh-my-zsh work.
 
@@ -62,6 +65,10 @@ HISTDB_TABULATE_CMD=(sed -e $'s/\x1f/\t/g')
 
 [[https://github.com/drewis/go-histdbimport][go-histdbimport]] and [[https://github.com/phiresky/ts-histdbimport][ts-histdbimport]] are useful tools for doing this! Note that the imported history will not include metadata such as the working directory or the exit status, since that is not stored in the normal history file format, so queries using ~--in DIR~, etc. will not work as expected.
 
+* Configuration
+histdb can be configured exactly as zsh:
+- [[https://zsh.sourceforge.io/Doc/Release/Parameters.html#index-HISTORY_005fIGNORE][HISTORY_IGNORE]]: If set, is treated as a single glob pattern to match the commands that should be ignored. Ignored commands are not saved to the database. Example: ~(ls|cd|top|htop)~.
+
 * Querying history
 You can query the history with the ~histdb~ command.
 With no arguments it will print one screenful of history on the current host.
@@ -98,7 +105,7 @@ To see a specific host, add ~--host hostname~.
 To see all of a specific session say e.g. ~-s 522 --limit 10000~.
 ** Integration with ~zsh-autosuggestions~
 
-If you use [[https://github.com/zsh-users/zsh-autosuggestions][zsh-autosuggestions]] you can configure it to search the history database instead of the ZSH history file thus:
+If you use [[https://github.com/zsh-users/zsh-autosuggestions][zsh-autosuggestions]] you can configure it to search the history database instead of the zsh history file thus:
 
 #+BEGIN_SRC sh
   _zsh_autosuggest_strategy_histdb_top_here() {
@@ -118,12 +125,15 @@ This query will find the most frequently issued command that is issued in the cu
 
 #+BEGIN_SRC sh
   _zsh_autosuggest_strategy_histdb_top() {
-      local query="select commands.argv from
-  history left join commands on history.command_id = commands.rowid
-  left join places on history.place_id = places.rowid
-  where commands.argv LIKE '$(sql_escape $1)%'
-  group by commands.argv
-  order by places.dir != '$(sql_escape $PWD)', count(*) desc limit 1"
+      local query="
+          select commands.argv from history
+          left join commands on history.command_id = commands.rowid
+          left join places on history.place_id = places.rowid
+          where commands.argv LIKE '$(sql_escape $1)%'
+          group by commands.argv, places.dir
+          order by places.dir != '$(sql_escape $PWD)', count(*) desc
+          limit 1
+      "
       suggestion=$(_histdb_query "$query")
   }
 
@@ -152,6 +162,15 @@ There are also a few extra keybindings:
   This means you can search for ./run-this-command and then ~M-j~ to go to the right directory before running.
 - ~M-h~ will toggle limiting the search to the current host's history.
 - ~M-d~ will toggle limiting the search to the current directory and subdirectories' histories
+** fzf
+Another thing you can use is fzf
+
+#+BEGIN_SRC sh
+source histdb-fzf.zsh
+bindkey '^r' _fzf_histdb_widget
+#+END_SRC
+
+see histdb-isearch-fzf-glue for more examples.
 * Database schema
 The database lives by default in ~$HOME/.histdb/zsh-history.db~.
 You can look in it easily by running ~_histdb_query~, as this actually just fires up sqlite with the database.

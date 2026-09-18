@@ -4,7 +4,7 @@ typeset -g HISTDB_SCHEMA_VERSION=2
 typeset -g HISTDB_INSTALLED_IN="${(%):-%N}"
 
 local TARGET_FILE="$1"
-local CURRENT_VERSION=$(sqlite3 "${TARGET_FILE}" 'PRAGMA user_version')
+local CURRENT_VERSION=$(sqlite3 -batch -noheader "${TARGET_FILE}" 'PRAGMA user_version')
 if [[ ${CURRENT_VERSION} -lt ${HISTDB_SCHEMA_VERSION} ]]; then
     echo "History database ${TARGET_FILE} is using an older schema (${CURRENT_VERSION}) and will be updated to version ${HISTDB_SCHEMA_VERSION}."
     local MIGRATION_FILENAME="$(dirname ${HISTDB_INSTALLED_IN})/db_migrations/${CURRENT_VERSION}to${HISTDB_SCHEMA_VERSION}.sql"
@@ -12,7 +12,7 @@ if [[ ${CURRENT_VERSION} -lt ${HISTDB_SCHEMA_VERSION} ]]; then
         local BACKUP_FILE="${TARGET_FILE}-$(date +%s).bak"
         echo "Backing up database to ${BACKUP_FILE} before migration"
         cp ${BACKUP_FILE} ${HISTDB_FILE}
-        sqlite3 "${TARGET_FILE}" < "${MIGRATION_FILENAME}"
+        sqlite3 -batch -noheader "${TARGET_FILE}" < "${MIGRATION_FILENAME}"
         local R="$?"
         [[ "$R" -ne 0 ]] && (echo "Error during database conversion"; cp ${BACKUP_FILE} ${HISTDB_FILE}) || echo "Update successful (you may want to remove the backup)"
         return "$R"

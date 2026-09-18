@@ -1,6 +1,9 @@
 which sqlite3 >/dev/null 2>&1 || return;
 
+zmodload zsh/datetime # for EPOCHSECONDS
 zmodload zsh/system # for sysopen
+builtin which sysopen &>/dev/null || return; # guard against zsh older than 5.0.8.
+
 zmodload -F zsh/stat b:zstat # just zstat
 autoload -U add-zsh-hook
 
@@ -11,7 +14,8 @@ else
     typeset -g HISTDB_FILE
 fi
 
-typeset -g HISTDB_INODE=""
+typeset -g HISTDB_FD
+typeset -g HISTDB_INODE=()
 typeset -g HISTDB_SESSION=""
 typeset -g HISTDB_HOST=""
 typeset -g HISTDB_INSTALLED_IN="${(%):-%N}"
@@ -19,11 +23,11 @@ typeset -g HISTDB_INSTALLED_IN="${(%):-%N}"
 
 
 sql_escape () {
-    sed -e "s/'/''/g" <<< "$@" | tr -d '\000'
+    print -r -- ${${@//\'/\'\'}//$'\x00'}
 }
 
 _histdb_query () {
-    sqlite3 -cmd ".timeout 1000" "${HISTDB_FILE}" "$@"
+    sqlite3 -batch -noheader -cmd ".timeout 1000" "${HISTDB_FILE}" "$@"
     [[ "$?" -ne 0 ]] && echo "error in $@"
 }
 
@@ -46,19 +50,19 @@ _histdb_stop_sqlite_pipe () {
 add-zsh-hook zshexit _histdb_stop_sqlite_pipe
 
 _histdb_start_sqlite_pipe () {
-    local PIPE=$(mktemp -u)
+    local PIPE==(<<<'')
     setopt local_options no_notify no_monitor
     mkfifo $PIPE
     pushd -q "${HISTDB_FILE:h}"
-    sqlite3 -batch "${HISTDB_FILE:t}" < $PIPE >/dev/null &|
-    popd -q
+    sqlite3 -batch -noheader "${HISTDB_FILE:t}" < $PIPE >/dev/null &|
     sysopen -w -o cloexec -u HISTDB_FD -- $PIPE
     command rm $PIPE
-    HISTDB_INODE=$(zstat +inode ${HISTDB_FILE})
+    zstat -A HISTDB_INODE +inode ${HISTDB_FILE}
 }
 
 _histdb_query_batch () {
-    local CUR_INODE=$(zstat +inode ${HISTDB_FILE})
+    local CUR_INODE
+    zstat -A CUR_INODE +inode ${HISTDB_FILE}
     if [[ $CUR_INODE != $HISTDB_INODE ]]; then
         _histdb_stop_sqlite_pipe
         _histdb_start_sqlite_pipe
@@ -71,9 +75,9 @@ _histdb_init () {
     if [[ -n "${HISTDB_SESSION}" ]]; then
         return
     fi
-    
+
     if ! [[ -e "${HISTDB_FILE}" ]]; then
-        local hist_dir="$(dirname ${HISTDB_FILE})"
+        local hist_dir="${HISTDB_FILE:h}"
         if ! [[ -d "$hist_dir" ]]; then
             mkdir -p -- "$hist_dir"
         fi
@@ -91,8 +95,8 @@ PRAGMA user_version = 2;
 EOF
     fi
     if [[ -z "${HISTDB_SESSION}" ]]; then
-        $(dirname ${HISTDB_INSTALLED_IN})/histdb-migrate "${HISTDB_FILE}"
-        HISTDB_HOST="'$(sql_escape ${HOST})'"
+        ${HISTDB_INSTALLED_IN:h}/histdb-migrate "${HISTDB_FILE}"
+        HISTDB_HOST=${HISTDB_HOST:-"'$(sql_escape ${HOST})'"}
         HISTDB_SESSION=$(_histdb_query "select 1+max(session) from history inner join places on places.id=history.place_id where places.host = ${HISTDB_HOST}")
         HISTDB_SESSION="${HISTDB_SESSION:-0}"
         readonly HISTDB_SESSION
@@ -119,15 +123,15 @@ fi
 
 _histdb_update_outcome () {
     local retval=$?
-    local finished=$(date +%s)
+    local finished=$EPOCHSECONDS
     [[ -z "${HISTDB_SESSION}" ]] && return
 
     _histdb_init
     _histdb_query_batch <<EOF &|
-update history set 
-      exit_status = ${retval}, 
+update history set
+      exit_status = ${retval},
       duration = ${finished} - start_time
-where id = (select max(id) from history) and 
+where id = (select max(id) from history) and
       session = ${HISTDB_SESSION} and
       exit_status is NULL;
 EOF
@@ -136,6 +140,13 @@ EOF
 _histdb_addhistory () {
     local cmd="${1[0, -2]}"
 
+    if [[ -o histignorespace && "$cmd" =~ "^ " ]]; then
+        return 0
+    fi
+    if [[ ${cmd} == ${~HISTORY_IGNORE} ]]; then
+        return 0
+    fi
+    local boring
     for boring in "${_BORING_COMMANDS[@]}"; do
         if [[ "$cmd" =~ $boring ]]; then
             return 0
@@ -144,7 +155,7 @@ _histdb_addhistory () {
 
     local cmd="'$(sql_escape $cmd)'"
     local pwd="'$(sql_escape ${PWD})'"
-    local started=$(date +%s)
+    local started=$EPOCHSECONDS
     _histdb_init
 
     if [[ "$cmd" != "''" ]]; then
@@ -207,18 +218,24 @@ histdb-sync () {
     echo "truncating WAL"
     echo 'pragma wal_checkpoint(truncate);' | _histdb_query_batch
     
-    local hist_dir="$(dirname ${HISTDB_FILE})"
+    local hist_dir="${HISTDB_FILE:h}"
     if [[ -d "$hist_dir" ]]; then
-        pushd "$hist_dir"
-        if [[ $(git rev-parse --is-inside-work-tree) != "true" ]] || [[ "$(git rev-parse --show-toplevel)" != "$(pwd -P)" ]]; then
-            git init
-            git config merge.histdb.driver "$(dirname ${HISTDB_INSTALLED_IN})/histdb-merge %O %A %B"
-            echo "$(basename ${HISTDB_FILE}) merge=histdb" | tee -a .gitattributes &>-
-            git add .gitattributes
-            git add "$(basename ${HISTDB_FILE})"
-        fi
-        git commit -am "history" && git pull --no-edit && git push
-        popd
+        () {
+            setopt local_options no_pushd_ignore_dups
+
+            pushd -q "$hist_dir"
+            if [[ $(git rev-parse --is-inside-work-tree) != "true" ]] || [[ "$(git rev-parse --show-toplevel)" != "${PWD:A}" ]]; then
+                git init
+                git config merge.histdb.driver "${HISTDB_INSTALLED_IN:h}/histdb-merge %O %A %B"
+                echo "${HISTDB_FILE:t} merge=histdb" >>! .gitattributes
+                git add .gitattributes
+                git add "${HISTDB_FILE:t}"
+            fi
+            _histdb_stop_sqlite_pipe # Stop in case of a merge, starting again afterwards
+            git commit -am "history" && git pull --no-edit && git push
+            _histdb_start_sqlite_pipe
+            popd -q
+        }
     fi
 
     echo 'pragma wal_checkpoint(passive);' | _histdb_query_batch
@@ -237,6 +254,7 @@ histdb () {
                -in+::=indirs \
                -at+::=atdirs \
                -forget \
+               -yes \
                -detail \
                -sep:- \
                -exact \
@@ -245,7 +263,7 @@ histdb () {
                -from:- -until:- -limit:- \
                -status:- -desc
 
-    local usage="usage:$0 terms [--host] [--in] [--at] [-s n]+* [--from] [--until] [--limit] [--forget] [--sep x] [--detail]
+    local usage="usage:$0 terms [--desc] [--host[ x]] [--in[ x]] [--at] [-s n]+* [-d] [--detail] [--forget] [--yes] [--exact] [--sep x] [--from x] [--until x] [--limit n] [--status x]
     --desc     reverse sort order of results
     --host     print the host column and show all hosts (otherwise current host)
     --host x   find entries from host x
@@ -256,6 +274,7 @@ histdb () {
     -d         debug output query that will be run
     --detail   show details
     --forget   forget everything which matches in the history
+    --yes      don't ask for confirmation when forgetting
     --exact    don't match substrings
     --sep x    print with separator x, and don't tabulate
     --from x   only show commands after date x (sqlite date parser)
@@ -273,6 +292,7 @@ histdb () {
     fi
 
     local forget="0"
+    local forget_accept=0
     local exact=0
 
     if (( ${#hosts} )); then
@@ -380,6 +400,9 @@ histdb () {
             --forget)
                 forget=1
                 ;;
+            --yes)
+                forget_accept=1
+                ;;
             --exact)
                 exact=1
                 ;;
@@ -415,10 +438,10 @@ $seps') as argv, max(start_time) as max_start"
     if [[ $orderdir == "asc" ]]; then
         r_order="desc"
     fi
-    
+
     local query="select ${selcols} from (select ${cols}
 from
-  commands 
+  commands
   join history on history.command_id = commands.id
   join places on history.place_id = places.id
 where ${where}
@@ -454,7 +477,7 @@ order by max_start desc) order by max_start ${orderdir}"
             }
         fi
         if [[ $sep == $'\x1f' ]]; then
-            _histdb_query -header -separator $sep "$query" | iconv -f utf-8 -t utf-8 -c | "${HISTDB_TABULATE_CMD[@]}" | buffer
+            _histdb_query -header -separator $sep "$query" | iconv -f utf-8 -t utf-8 -c | buffer | "${HISTDB_TABULATE_CMD[@]}"
         else
             _histdb_query -header -separator $sep "$query" | buffer
         fi
@@ -462,7 +485,11 @@ order by max_start desc) order by max_start ${orderdir}"
     fi
 
     if [[ $forget -gt 0 ]]; then
-        read -q "REPLY?Forget all these results? [y/n] "
+        if [[ $forget_accept -gt 0 ]]; then
+          REPLY=y
+        else
+          read -q "REPLY?Forget all these results? [y/n] "
+        fi
         if [[ $REPLY =~ "[yY]" ]]; then
             _histdb_query "delete from history where
 history.id in (
