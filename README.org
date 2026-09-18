@@ -1,6 +1,8 @@
 #+TITLE:ZSH History Database
 
 * News
+- 18/09/26 :: Thanks to https://github.com/m42e/zsh-histdb-fzf and claude I have mangled together an fzf thing.
+  See below for how to use.
 - 13/10/21 :: Thanks to Aloxaf some subshell invocations have been removed which should make things quicker. Thanks to m42e (again) ~histdb-sync~ uses the remote database IDs as the canonical ones which should make syncing a bit less thrashy. Thanks to Chad Transtrum we use ~builtin which~ rather than ~which~, for systems which have an unusual which (?!), and an improvement to examples below in the README. Thanks to Klaus Ethgen the invocation of ~sqlite3~ is now unaffected by some potential confusions in your sqlite rc files.
 - 30/06/20 :: Thanks to rolandwalker, add-zsh-hook is used so histdb is a better citizen.
   Thanks to GreenArchon and phiresky the sqlite helper process is terminated on exit better, and the WAL is truncated before doing histdb sync. This should make things behave a bit better. Thanks to gabreal (and others, I think), some things have been changed to ~declare -ga~ which helps when using antigen or somesuch? Thanks to sheperdjerred and fuero there is now a file which might make antigen and oh-my-zsh work.
@@ -160,6 +162,15 @@ There are also a few extra keybindings:
   This means you can search for ./run-this-command and then ~M-j~ to go to the right directory before running.
 - ~M-h~ will toggle limiting the search to the current host's history.
 - ~M-d~ will toggle limiting the search to the current directory and subdirectories' histories
+** fzf
+Another thing you can use is fzf
+
+#+BEGIN_SRC sh
+source histdb-fzf.zsh
+bindkey '^r' _fzf_histdb_widget
+#+END_SRC
+
+see histdb-isearch-fzf-glue for more examples.
 * Database schema
 The database lives by default in ~$HOME/.histdb/zsh-history.db~.
 You can look in it easily by running ~_histdb_query~, as this actually just fires up sqlite with the database.
